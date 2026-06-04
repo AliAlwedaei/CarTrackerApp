@@ -175,7 +175,7 @@ private fun FuelLogCard(log: FuelLog, onEdit: () -> Unit, onDelete: () -> Unit) 
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 StatCell("Odometer", "%.0f km".format(log.odometer))
                 StatCell("Liters", "%.2f L".format(log.liters))
-                StatCell("Total", "$%.2f".format(log.totalCost))
+                StatCell("Total", "BD %.3f".format(log.totalCost))
             }
             if (log.fuelEfficiency > 0) {
                 Spacer(Modifier.height(6.dp))
@@ -274,7 +274,7 @@ private fun FuelLogSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Total Cost", color = NeonCyan, style = MaterialTheme.typography.bodyMedium)
-                    Text("$%.2f".format(totalCost), color = NeonCyan, fontWeight = FontWeight.Bold)
+                    Text("BD %.3f".format(totalCost), color = NeonCyan, fontWeight = FontWeight.Bold)
                 }
             }
 

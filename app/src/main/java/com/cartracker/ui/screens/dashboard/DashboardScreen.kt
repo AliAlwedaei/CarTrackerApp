@@ -414,7 +414,7 @@ private fun FuelEconomyCard(
                     modifier = Modifier.size(13.dp)
                 )
                 Text(
-                    if (monthlyCost > 0) "${"$%.0f".format(monthlyCost)} / mo" else "No data",
+                    if (monthlyCost > 0) "BD %.3f / mo".format(monthlyCost) else "No data",
                     color = OnSurfaceSecondary,
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -749,7 +749,7 @@ private fun AnalyticsSection(stats: DashboardStats?, modifier: Modifier = Modifi
             )
             SnapStat(
                 label = "Cost / km",
-                value = if (stats.costPerKm > 0) "$%.3f".format(stats.costPerKm) else "--",
+                value = if (stats.costPerKm > 0) "BD %.3f".format(stats.costPerKm) else "--",
                 sub = "fuel cost",
                 modifier = Modifier.weight(1f)
             )
@@ -764,7 +764,7 @@ private fun AnalyticsSection(stats: DashboardStats?, modifier: Modifier = Modifi
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         val totalSpend = stats.monthlyStats.sumOf { it.cost }
                         if (totalSpend > 0) {
-                            Text("$%.0f total".format(totalSpend), color = OnSurfaceSecondary,
+                            Text("BD %.3f total".format(totalSpend), color = OnSurfaceSecondary,
                                 style = MaterialTheme.typography.labelSmall)
                         }
                     }
@@ -837,7 +837,7 @@ private fun MonthlyBarChart(months: List<MonthlyFuelStat>, modifier: Modifier = 
                 verticalArrangement = Arrangement.Bottom
             ) {
                 if (stat.cost > 0) {
-                    Text("$%.0f".format(stat.cost), fontSize = 8.sp, color = OnSurfaceSecondary, lineHeight = 10.sp)
+                    Text("BD %.3f".format(stat.cost), fontSize = 8.sp, color = OnSurfaceSecondary, lineHeight = 10.sp)
                     Spacer(Modifier.height(3.dp))
                 }
                 Box(

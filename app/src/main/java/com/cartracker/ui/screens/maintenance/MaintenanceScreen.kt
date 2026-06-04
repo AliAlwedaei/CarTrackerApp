@@ -197,7 +197,7 @@ private fun MaintenanceCard(log: MaintenanceLog, onEdit: () -> Unit, onDelete: (
                 }
                 Column {
                     Text("Cost", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
-                    Text("$%.2f".format(log.cost), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text("BD %.3f".format(log.cost), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                 }
             }
             if (log.notes.isNotBlank()) {
@@ -292,7 +292,7 @@ private fun MaintenanceSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
                 OutlinedTextField(value = cost, onValueChange = { cost = it },
-                    label = { Text("Cost ($)") },
+                    label = { Text("Cost (BD)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
             }
