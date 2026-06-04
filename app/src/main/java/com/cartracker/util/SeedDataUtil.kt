@@ -13,6 +13,7 @@ object SeedDataUtil {
         val prefs = context.getSharedPreferences("cartracker_dev", Context.MODE_PRIVATE)
         seedV2(context, prefs)
         seedV3(context, prefs)
+        seedV4(context, prefs)
     }
 
     private suspend fun seedV3(context: Context, prefs: android.content.SharedPreferences) {
@@ -69,6 +70,48 @@ object SeedDataUtil {
         repo.insertReminder(Reminder(carId = civicId, title = "Insurance Renewal", type = ReminderType.DATE, targetDate = daysAhead(23), notes = "Policy #CV-8821-2024"))
 
         prefs.edit().putBoolean("seed_done_v3", true).apply()
+    }
+
+    private suspend fun seedV4(context: Context, prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean("seed_done_v4", false)) return
+        val repo = (context.applicationContext as CarTrackerApp).repository
+
+        fun daysAgo(days: Int): Long = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, -days)
+            set(Calendar.HOUR_OF_DAY, 9)
+            set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val allCars = repo.getAllCarsOnce()
+        val camry = allCars.firstOrNull { it.make == "Toyota" && it.model == "Camry" } ?: return
+        val civic = allCars.firstOrNull { it.make == "Honda" && it.model == "Civic" } ?: return
+
+        // Camry: ENGINE_OIL 21d ago (overdue by 7d), BATTERY 95d ago (overdue by 5d),
+        //        WASHER_FLUID 25d ago (due in 5d), WIPER_BLADES 175d ago (due in 5d),
+        //        COOLANT never, rest OK
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.ENGINE_OIL,   lastCheckedAt = daysAgo(21),  intervalDays = 14))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.TYRE_PRESSURE,lastCheckedAt = daysAgo(14),  intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.COOLANT,      lastCheckedAt = null,          intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.WASHER_FLUID, lastCheckedAt = daysAgo(25),  intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.LIGHTS,       lastCheckedAt = daysAgo(20),  intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.BRAKE_FLUID,  lastCheckedAt = daysAgo(60),  intervalDays = 90))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.BATTERY,      lastCheckedAt = daysAgo(95),  intervalDays = 90))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.AIR_FILTER,   lastCheckedAt = daysAgo(90),  intervalDays = 180))
+        repo.insertHealthCheck(HealthCheck(carId = camry.id, checkType = HealthCheckType.WIPER_BLADES, lastCheckedAt = daysAgo(175), intervalDays = 180))
+
+        // Civic: ENGINE_OIL 10d ago (due in 4d), WASHER_FLUID 28d ago (due in 2d),
+        //        TYRE_PRESSURE/LIGHTS/AIR_FILTER never, rest OK
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.ENGINE_OIL,   lastCheckedAt = daysAgo(10),  intervalDays = 14))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.TYRE_PRESSURE,lastCheckedAt = null,          intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.COOLANT,      lastCheckedAt = daysAgo(15),  intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.WASHER_FLUID, lastCheckedAt = daysAgo(28),  intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.LIGHTS,       lastCheckedAt = null,          intervalDays = 30))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.BRAKE_FLUID,  lastCheckedAt = daysAgo(5),   intervalDays = 90))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.BATTERY,      lastCheckedAt = daysAgo(30),  intervalDays = 90))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.AIR_FILTER,   lastCheckedAt = null,          intervalDays = 180))
+        repo.insertHealthCheck(HealthCheck(carId = civic.id, checkType = HealthCheckType.WIPER_BLADES, lastCheckedAt = daysAgo(100), intervalDays = 180))
+
+        prefs.edit().putBoolean("seed_done_v4", true).apply()
     }
 
     private suspend fun seedV2(context: Context, prefs: android.content.SharedPreferences) {

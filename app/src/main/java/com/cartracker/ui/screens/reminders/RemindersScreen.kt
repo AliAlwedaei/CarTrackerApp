@@ -29,6 +29,7 @@ import com.cartracker.data.db.entities.ReminderType
 import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.screens.fuellog.DatePickerField
 import com.cartracker.ui.screens.fuellog.sheetFieldColors
+import com.cartracker.ui.screens.healthchecks.HealthChecksScreen
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.RemindersViewModel
 import com.cartracker.ui.viewmodel.RemindersViewModelFactory
@@ -49,6 +50,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
     var showSheet by remember { mutableStateOf(false) }
     var showCarPicker by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
 
@@ -75,7 +77,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
             )
         },
         floatingActionButton = {
-            if (carId != null) {
+            if (carId != null && selectedTab == 0) {
                 FloatingActionButton(onClick = { editingReminder = null; showSheet = true },
                     containerColor = NeonCyan, contentColor = TrueBlack, shape = RoundedCornerShape(16.dp)) {
                     Icon(Icons.Filled.Add, "Add Reminder")
@@ -88,48 +90,86 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
                 Text("Select a car to manage reminders", color = OnSurfaceSecondary)
             }
         } else {
-            val active = reminders.filter { !it.isCompleted }
-            val done = reminders.filter { it.isCompleted }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(vertical = 14.dp)
-            ) {
-                if (active.isEmpty() && done.isEmpty()) {
-                    item {
-                        Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Filled.Notifications, null, Modifier.size(40.dp), tint = OnSurfaceSecondary)
-                                Text("No reminders set", color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold)
-                                Text("Tap + to add a reminder", color = OnSurfaceSecondary, fontSize = 13.sp)
-                            }
+            Column(Modifier.fillMaxSize().padding(padding)) {
+                // Segmented control: Reminders | Health Checks
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SurfaceContainerHigh)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf("Reminders", "Health Checks").forEachIndexed { index, label ->
+                        val selected = selectedTab == index
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (selected) NeonCyanGlow else SurfaceContainerHigh)
+                                .border(if (selected) 1.dp else 0.dp, if (selected) NeonCyanBorder else GlassBorder, RoundedCornerShape(8.dp))
+                                .clickable { selectedTab = index }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                label,
+                                color = if (selected) NeonCyan else OnSurfaceSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
                         }
                     }
                 }
-                if (active.isNotEmpty()) {
-                    item {
-                        Text("UPCOMING", color = NeonCyan, fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium, letterSpacing = 2.sp,
-                            modifier = Modifier.padding(bottom = 2.dp))
-                    }
-                    items(active, key = { it.id }) { r ->
-                        ReminderCard(reminder = r,
-                            onComplete = { viewModel.markCompleted(r.id) },
-                            onEdit = { editingReminder = r; showSheet = true },
-                            onDelete = { viewModel.deleteReminder(r) })
-                    }
-                }
-                if (done.isNotEmpty()) {
-                    item {
-                        Text("COMPLETED", color = OnSurfaceSecondary, fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium, letterSpacing = 2.sp,
-                            modifier = Modifier.padding(top = if (active.isNotEmpty()) 8.dp else 0.dp, bottom = 2.dp))
-                    }
-                    items(done, key = { it.id }) { r ->
-                        ReminderCard(reminder = r, onComplete = null,
-                            onEdit = null,
-                            onDelete = { viewModel.deleteReminder(r) })
+
+                if (selectedTab == 1) {
+                    HealthChecksScreen(carId = carId)
+                } else {
+                    val active = reminders.filter { !it.isCompleted }
+                    val done = reminders.filter { it.isCompleted }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 14.dp)
+                    ) {
+                        if (active.isEmpty() && done.isEmpty()) {
+                            item {
+                                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Icon(Icons.Filled.Notifications, null, Modifier.size(40.dp), tint = OnSurfaceSecondary)
+                                        Text("No reminders set", color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold)
+                                        Text("Tap + to add a reminder", color = OnSurfaceSecondary, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
+                        if (active.isNotEmpty()) {
+                            item {
+                                Text("UPCOMING", color = NeonCyan, fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium, letterSpacing = 2.sp,
+                                    modifier = Modifier.padding(bottom = 2.dp))
+                            }
+                            items(active, key = { it.id }) { r ->
+                                ReminderCard(reminder = r,
+                                    onComplete = { viewModel.markCompleted(r.id) },
+                                    onEdit = { editingReminder = r; showSheet = true },
+                                    onDelete = { viewModel.deleteReminder(r) })
+                            }
+                        }
+                        if (done.isNotEmpty()) {
+                            item {
+                                Text("COMPLETED", color = OnSurfaceSecondary, fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium, letterSpacing = 2.sp,
+                                    modifier = Modifier.padding(top = if (active.isNotEmpty()) 8.dp else 0.dp, bottom = 2.dp))
+                            }
+                            items(done, key = { it.id }) { r ->
+                                ReminderCard(reminder = r, onComplete = null,
+                                    onEdit = null,
+                                    onDelete = { viewModel.deleteReminder(r) })
+                            }
+                        }
                     }
                 }
             }
