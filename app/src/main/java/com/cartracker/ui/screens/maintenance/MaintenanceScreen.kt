@@ -24,8 +24,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.MaintenanceCategory
 import com.cartracker.data.db.entities.MaintenanceLog
+import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.screens.fuellog.DatePickerField
 import com.cartracker.ui.screens.fuellog.sheetFieldColors
 import com.cartracker.ui.theme.*
@@ -36,16 +38,18 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MaintenanceScreen(carId: Long?) {
+fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
     val viewModel: MaintenanceViewModel = viewModel(
         factory = MaintenanceViewModelFactory(context.applicationContext as android.app.Application)
     )
     val logs by viewModel.maintenanceLogs.observeAsState(emptyList())
 
+    val selectedCar = cars.firstOrNull { it.id == carId }
     var editingLog by remember { mutableStateOf<MaintenanceLog?>(null) }
     var showSheet by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<MaintenanceLog?>(null) }
+    var showCarPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
 
@@ -53,7 +57,21 @@ fun MaintenanceScreen(carId: Long?) {
         containerColor = TrueBlack,
         topBar = {
             TopAppBar(
-                title = { Text("Maintenance Log", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text("Maintenance Log", fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                        if (selectedCar != null) {
+                            Text(selectedCar.name, color = NeonCyan, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                },
+                actions = {
+                    if (cars.size > 1) {
+                        IconButton(onClick = { showCarPicker = true }) {
+                            Icon(Icons.Filled.SwapHoriz, "Switch car", tint = NeonCyan)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceContainer, titleContentColor = OnSurfacePrimary)
             )
         },
@@ -121,6 +139,10 @@ fun MaintenanceScreen(carId: Long?) {
             },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel", color = OnSurfaceSecondary) } }
         )
+    }
+
+    if (showCarPicker && cars.size > 1) {
+        CarPickerSheet(cars = cars, selectedCarId = carId, onSelect = { onCarSelected(it); showCarPicker = false }, onDismiss = { showCarPicker = false })
     }
 }
 

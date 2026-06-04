@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.FuelLog
+import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.DashboardStats
 import com.cartracker.ui.viewmodel.DashboardViewModel
@@ -169,79 +170,12 @@ fun DashboardScreen(
 
     // ── Car picker sheet ──────────────────────────────────────────────────
     if (showCarPicker) {
-        ModalBottomSheet(
-            onDismissRequest = { showCarPicker = false },
-            containerColor = SurfaceContainer,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            dragHandle = {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 12.dp, bottom = 8.dp)
-                        .size(width = 36.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(SurfaceContainerHighest)
-                )
-            }
-        ) {
-            Column(
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 36.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    "Switch Car",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = OnSurfacePrimary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                cars.forEach { car ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                if (car.id == carId) NeonCyanGlow else Color.Transparent
-                            )
-                            .clickable { onCarSelected(car.id); showCarPicker = false }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(SurfaceContainerHigh),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.DirectionsCar,
-                                contentDescription = null,
-                                tint = if (car.id == carId) NeonCyan else OnSurfaceSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Column {
-                            Text(
-                                car.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = OnSurfacePrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                "${car.make} ${car.model} · ${car.year}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = OnSurfaceSecondary
-                            )
-                        }
-                        if (car.id == carId) {
-                            Spacer(Modifier.weight(1f))
-                            Icon(Icons.Filled.Check, null, tint = NeonCyan, modifier = Modifier.size(16.dp))
-                        }
-                    }
-                }
-            }
-        }
+        CarPickerSheet(
+            cars = cars,
+            selectedCarId = carId,
+            onSelect = { onCarSelected(it); showCarPicker = false },
+            onDismiss = { showCarPicker = false }
+        )
     }
 }
 

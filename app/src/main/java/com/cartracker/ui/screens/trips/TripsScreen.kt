@@ -24,8 +24,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.Trip
 import com.cartracker.data.db.entities.TripPurpose
+import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.screens.fuellog.DatePickerField
 import com.cartracker.ui.screens.fuellog.sheetFieldColors
 import com.cartracker.ui.theme.*
@@ -36,7 +38,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TripsScreen(carId: Long?) {
+fun TripsScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
     val viewModel: TripsViewModel = viewModel(
         factory = TripsViewModelFactory(context.applicationContext as android.app.Application)
@@ -45,9 +47,11 @@ fun TripsScreen(carId: Long?) {
     val totalMileage by viewModel.totalMileage.observeAsState(0.0)
     val lastTrip by viewModel.lastTrip.observeAsState(null)
 
+    val selectedCar = cars.firstOrNull { it.id == carId }
     var editingTrip by remember { mutableStateOf<Trip?>(null) }
     var showSheet by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Trip?>(null) }
+    var showCarPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
 
@@ -55,17 +59,29 @@ fun TripsScreen(carId: Long?) {
         containerColor = TrueBlack,
         topBar = {
             TopAppBar(
-                title = { Text("Trips & Mileage", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text("Trips & Mileage", fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                        if (selectedCar != null) {
+                            Text(selectedCar.name, color = NeonCyan, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceContainer, titleContentColor = OnSurfacePrimary),
                 actions = {
                     if (totalMileage > 0) {
                         Box(
-                            modifier = Modifier.padding(end = 12.dp)
+                            modifier = Modifier.padding(end = if (cars.size > 1) 0.dp else 12.dp)
                                 .clip(RoundedCornerShape(8.dp)).background(NeonCyanGlow)
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text("%.0f km total".format(totalMileage), color = NeonCyan,
                                 style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    if (cars.size > 1) {
+                        IconButton(onClick = { showCarPicker = true }) {
+                            Icon(Icons.Filled.SwapHoriz, "Switch car", tint = NeonCyan)
                         }
                     }
                 }
@@ -136,6 +152,10 @@ fun TripsScreen(carId: Long?) {
             },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel", color = OnSurfaceSecondary) } }
         )
+    }
+
+    if (showCarPicker && cars.size > 1) {
+        CarPickerSheet(cars = cars, selectedCarId = carId, onSelect = { onCarSelected(it); showCarPicker = false }, onDismiss = { showCarPicker = false })
     }
 }
 

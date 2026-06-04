@@ -8,11 +8,71 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 object SeedDataUtil {
-    private const val PREF_KEY = "seed_done_v2"
 
     suspend fun seedIfEmpty(context: Context) = withContext(Dispatchers.IO) {
         val prefs = context.getSharedPreferences("cartracker_dev", Context.MODE_PRIVATE)
-        if (prefs.getBoolean(PREF_KEY, false)) return@withContext
+        seedV2(context, prefs)
+        seedV3(context, prefs)
+    }
+
+    private suspend fun seedV3(context: Context, prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean("seed_done_v3", false)) return
+        val repo = (context.applicationContext as CarTrackerApp).repository
+
+        fun daysAgo(days: Int, hour: Int = 9): Long = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, -days)
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        fun daysAhead(days: Int): Long = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, days)
+            set(Calendar.HOUR_OF_DAY, 9)
+            set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        // ── Second Car: Honda Civic 2019 (city commuter, smaller tank, worse efficiency) ──
+        val civicId = repo.insertCar(
+            Car(name = "Civic", make = "Honda", model = "Civic", year = 2019,
+                plateNumber = "XKP-2239", currentOdometer = 82310.0)
+        )
+
+        // Fuel logs — 40L tank, ~310 km range, ~7.8 km/L city
+        repo.insertFuelLog(FuelLog(carId = civicId, date = daysAgo(20), odometer = 81700.0, liters = 38.5, costPerLiter = 1.91, totalCost = 73.54, fuelEfficiency = 0.0))
+        repo.insertFuelLog(FuelLog(carId = civicId, date = daysAgo(14), odometer = 82000.0, liters = 39.1, costPerLiter = 1.88, totalCost = 73.51, fuelEfficiency = 7.67))
+        repo.insertFuelLog(FuelLog(carId = civicId, date = daysAgo(7),  odometer = 82310.0, liters = 38.8, costPerLiter = 1.93, totalCost = 74.88, fuelEfficiency = 7.99))
+
+        // Trips — shorter, more urban
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(20, 7),  startOdometer = 81700.0, endOdometer = 81712.0, distance = 12.0, purpose = TripPurpose.WORK, notes = "School drop-off"))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(20, 17), startOdometer = 81712.0, endOdometer = 81730.0, distance = 18.0, purpose = TripPurpose.PERSONAL, notes = "Grocery run"))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(18, 8),  startOdometer = 81730.0, endOdometer = 81758.0, distance = 28.0, purpose = TripPurpose.WORK, notes = ""))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(15, 8),  startOdometer = 81758.0, endOdometer = 81820.0, distance = 62.0, purpose = TripPurpose.PERSONAL, notes = "Errands + mall"))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(13, 7),  startOdometer = 81820.0, endOdometer = 81838.0, distance = 18.0, purpose = TripPurpose.WORK, notes = ""))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(12, 17), startOdometer = 81838.0, endOdometer = 81856.0, distance = 18.0, purpose = TripPurpose.WORK, notes = ""))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(10, 9),  startOdometer = 81856.0, endOdometer = 81940.0, distance = 84.0, purpose = TripPurpose.PERSONAL, notes = "Family visit"))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(7, 7),   startOdometer = 81940.0, endOdometer = 81958.0, distance = 18.0, purpose = TripPurpose.WORK, notes = ""))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(6, 8),   startOdometer = 81958.0, endOdometer = 81976.0, distance = 18.0, purpose = TripPurpose.WORK, notes = ""))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(5, 10),  startOdometer = 81976.0, endOdometer = 82058.0, distance = 82.0, purpose = TripPurpose.PERSONAL, notes = "Weekend outing"))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(3, 7),   startOdometer = 82058.0, endOdometer = 82076.0, distance = 18.0, purpose = TripPurpose.WORK, notes = ""))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(2, 7),   startOdometer = 82076.0, endOdometer = 82200.0, distance = 124.0, purpose = TripPurpose.PERSONAL, notes = "Day trip"))
+        repo.insertTrip(Trip(carId = civicId, date = daysAgo(1, 7),   startOdometer = 82200.0, endOdometer = 82310.0, distance = 110.0, purpose = TripPurpose.WORK, notes = "Conference"))
+
+        // Maintenance — brakes done recently
+        repo.insertMaintenanceLog(MaintenanceLog(
+            carId = civicId, category = MaintenanceCategory.BRAKES,
+            serviceType = "Front Brake Pad Replacement", date = daysAgo(5),
+            mileage = 81976.0, cost = 210.0, notes = "OEM pads, both sides"
+        ))
+
+        // Reminders
+        repo.insertReminder(Reminder(carId = civicId, title = "Air Filter Replacement", type = ReminderType.MILEAGE, targetMileage = 85000.0, notes = "Every 15 000 km"))
+        repo.insertReminder(Reminder(carId = civicId, title = "Insurance Renewal", type = ReminderType.DATE, targetDate = daysAhead(23), notes = "Policy #CV-8821-2024"))
+
+        prefs.edit().putBoolean("seed_done_v3", true).apply()
+    }
+
+    private suspend fun seedV2(context: Context, prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean("seed_done_v2", false)) return
 
         val repo = (context.applicationContext as CarTrackerApp).repository
 
@@ -115,6 +175,6 @@ object SeedDataUtil {
             targetDate = daysAgo(2), notes = "Before the long drive", isCompleted = true
         ))
 
-        prefs.edit().putBoolean(PREF_KEY, true).apply()
+        prefs.edit().putBoolean("seed_done_v2", true).apply()
     }
 }

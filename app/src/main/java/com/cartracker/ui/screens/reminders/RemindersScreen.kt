@@ -23,8 +23,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.Reminder
 import com.cartracker.data.db.entities.ReminderType
+import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.screens.fuellog.DatePickerField
 import com.cartracker.ui.screens.fuellog.sheetFieldColors
 import com.cartracker.ui.theme.*
@@ -36,15 +38,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RemindersScreen(carId: Long?) {
+fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
     val viewModel: RemindersViewModel = viewModel(
         factory = RemindersViewModelFactory(context.applicationContext as android.app.Application)
     )
     val reminders by viewModel.reminders.observeAsState(emptyList())
 
+    val selectedCar = cars.firstOrNull { it.id == carId }
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
     var showSheet by remember { mutableStateOf(false) }
+    var showCarPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
 
@@ -52,7 +56,21 @@ fun RemindersScreen(carId: Long?) {
         containerColor = TrueBlack,
         topBar = {
             TopAppBar(
-                title = { Text("Reminders", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text("Reminders", fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                        if (selectedCar != null) {
+                            Text(selectedCar.name, color = NeonCyan, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                },
+                actions = {
+                    if (cars.size > 1) {
+                        IconButton(onClick = { showCarPicker = true }) {
+                            Icon(Icons.Filled.SwapHoriz, "Switch car", tint = NeonCyan)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceContainer, titleContentColor = OnSurfacePrimary)
             )
         },
@@ -128,6 +146,10 @@ fun RemindersScreen(carId: Long?) {
                 showSheet = false; editingReminder = null
             }
         )
+    }
+
+    if (showCarPicker && cars.size > 1) {
+        CarPickerSheet(cars = cars, selectedCarId = carId, onSelect = { onCarSelected(it); showCarPicker = false }, onDismiss = { showCarPicker = false })
     }
 }
 

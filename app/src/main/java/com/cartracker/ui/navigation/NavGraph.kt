@@ -51,7 +51,7 @@ fun CarTrackerNavHost() {
         Triple(Screen.Maintenance, Icons.Filled.Build, "Service"),
         Triple(Screen.Trips, Icons.Filled.DirectionsCar, "Trips"),
         Triple(Screen.Reminders, Icons.Filled.Notifications, "Alerts"),
-        Triple(Screen.Cars, Icons.Filled.DirectionsCar, "Cars"),
+        Triple(Screen.Cars, Icons.Filled.Garage, "Cars"),
     )
 
     Scaffold(
@@ -137,16 +137,16 @@ fun CarTrackerNavHost() {
                 )
             }
             composable(Screen.FuelLog.route) {
-                FuelLogScreen(carId = activeCarId)
+                FuelLogScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
             composable(Screen.Maintenance.route) {
-                MaintenanceScreen(carId = activeCarId)
+                MaintenanceScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
             composable(Screen.Trips.route) {
-                TripsScreen(carId = activeCarId)
+                TripsScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
             composable(Screen.Reminders.route) {
-                RemindersScreen(carId = activeCarId)
+                RemindersScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
             composable(Screen.Cars.route) {
                 CarsScreen(carsViewModel = carsViewModel)

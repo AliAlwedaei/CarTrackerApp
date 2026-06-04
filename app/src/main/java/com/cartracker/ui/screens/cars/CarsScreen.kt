@@ -1,9 +1,15 @@
 package com.cartracker.ui.screens.cars
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -11,190 +17,248 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.cartracker.data.db.entities.Car
+import com.cartracker.ui.screens.fuellog.sheetFieldColors
+import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.CarsViewModel
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CarsScreen(carsViewModel: CarsViewModel) {
     val cars by carsViewModel.cars.observeAsState(emptyList())
     val selectedCarId by carsViewModel.selectedCarId.observeAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
+    val activeId = selectedCarId ?: cars.firstOrNull()?.id
+
+    var showSheet by remember { mutableStateOf(false) }
     var editCar by remember { mutableStateOf<Car?>(null) }
+    var deleteTarget by remember { mutableStateOf<Car?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("My Cars") }) },
+        containerColor = TrueBlack,
+        topBar = {
+            TopAppBar(
+                title = { Text("My Cars", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceContainer, titleContentColor = OnSurfacePrimary)
+            )
+        },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Car")
-            }
+            FloatingActionButton(
+                onClick = { editCar = null; showSheet = true },
+                containerColor = NeonCyan, contentColor = TrueBlack,
+                shape = RoundedCornerShape(16.dp)
+            ) { Icon(Icons.Filled.Add, "Add Car") }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            if (cars.isEmpty()) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Filled.DirectionsCar, contentDescription = null,
-                                modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("No cars yet", style = MaterialTheme.typography.titleMedium)
-                            Text("Tap + to add your first car", style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
+        if (cars.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.Garage, null, Modifier.size(40.dp), tint = OnSurfaceSecondary)
+                    Text("No cars yet", color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold)
+                    Text("Tap + to add your first car", color = OnSurfaceSecondary, fontSize = 13.sp)
                 }
             }
-            items(cars) { car ->
-                CarCard(
-                    car = car,
-                    isSelected = car.id == (selectedCarId ?: cars.firstOrNull()?.id),
-                    onSelect = { carsViewModel.selectCar(car.id) },
-                    onEdit = { editCar = car },
-                    onDelete = { carsViewModel.deleteCar(car) }
-                )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 14.dp)
+            ) {
+                items(cars, key = { it.id }) { car ->
+                    CarCard(
+                        car = car,
+                        isActive = car.id == activeId,
+                        onSelect = { carsViewModel.selectCar(car.id) },
+                        onEdit = { editCar = car; showSheet = true },
+                        onDelete = { deleteTarget = car }
+                    )
+                }
             }
         }
     }
 
-    if (showAddDialog) {
-        CarDialog(
-            car = null,
-            onDismiss = { showAddDialog = false },
-            onConfirm = { name, make, model, year, plate, odometer ->
-                carsViewModel.insertCar(Car(name = name, make = make, model = model,
-                    year = year, plateNumber = plate, currentOdometer = odometer))
-                showAddDialog = false
+    if (showSheet) {
+        CarSheet(
+            existingCar = editCar,
+            onDismiss = { showSheet = false; editCar = null },
+            onSave = { name, make, model, year, plate, odo ->
+                if (editCar != null) {
+                    carsViewModel.updateCar(editCar!!.copy(name = name, make = make, model = model, year = year, plateNumber = plate, currentOdometer = odo))
+                } else {
+                    carsViewModel.insertCar(Car(name = name, make = make, model = model, year = year, plateNumber = plate, currentOdometer = odo))
+                }
+                showSheet = false; editCar = null
             }
         )
     }
 
-    editCar?.let { car ->
-        CarDialog(
-            car = car,
-            onDismiss = { editCar = null },
-            onConfirm = { name, make, model, year, plate, odometer ->
-                carsViewModel.updateCar(car.copy(name = name, make = make, model = model,
-                    year = year, plateNumber = plate, currentOdometer = odometer))
-                editCar = null
-            }
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            containerColor = SurfaceContainerHigh,
+            title = { Text("Remove ${target.name}?", color = OnSurfacePrimary, fontWeight = FontWeight.Bold) },
+            text = { Text("All fuel, trip, and maintenance records for this car will be deleted.", color = OnSurfaceSecondary) },
+            confirmButton = {
+                TextButton(onClick = { carsViewModel.deleteCar(target); deleteTarget = null }) {
+                    Text("Remove", color = ErrorRed, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel", color = OnSurfaceSecondary) } }
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ─── Card ─────────────────────────────────────────────────────────────────────
+
 @Composable
-private fun CarCard(
-    car: Car,
-    isSelected: Boolean,
-    onSelect: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onSelect,
-        colors = if (isSelected) CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ) else CardDefaults.cardColors()
+private fun CarCard(car: Car, isActive: Boolean, onSelect: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceContainer)
+            .border(1.dp, if (isActive) NeonCyanBorder else GlassBorder, RoundedCornerShape(16.dp))
+            .clickable(onClick = onSelect)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.DirectionsCar,
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                           else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        if (isSelected) Badge { Text("Active") }
+        Column(Modifier.padding(16.dp)) {
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.Top) {
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
+                            .background(if (isActive) NeonCyanGlow else SurfaceContainerHigh),
+                        Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.DirectionsCar, null, tint = if (isActive) NeonCyan else OnSurfaceSecondary, modifier = Modifier.size(22.dp))
                     }
-                    Text("${car.make} ${car.model} · ${car.year}", style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        if (car.plateNumber.isNotBlank()) {
-                            Text("Plate: ${car.plateNumber}", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(car.name, color = if (isActive) NeonCyan else OnSurfacePrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                            if (isActive) {
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(4.dp)).background(NeonCyanGlow)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("ACTIVE", color = NeonCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                }
+                            }
                         }
-                        if (car.currentOdometer > 0) {
-                            Text("%.0f km".format(car.currentOdometer), style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        Text("${car.make} ${car.model} · ${car.year}", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                Row {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.Edit, "Edit", tint = NeonCyan, modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.Delete, "Delete", tint = ErrorRed, modifier = Modifier.size(16.dp))
                     }
                 }
             }
-            Row {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
+
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                if (car.plateNumber.isNotBlank()) {
+                    StatChip(label = "Plate", value = car.plateNumber)
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                if (car.currentOdometer > 0) {
+                    StatChip(label = "Odometer", value = "%.0f km".format(car.currentOdometer))
                 }
             }
         }
     }
 }
 
+@Composable
+private fun StatChip(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
+        Text(value, color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+// ─── Bottom Sheet ─────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CarDialog(
-    car: Car?,
+private fun CarSheet(
+    existingCar: Car?,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Int, String, Double) -> Unit
+    onSave: (String, String, String, Int, String, Double) -> Unit
 ) {
-    var name by remember { mutableStateOf(car?.name ?: "") }
-    var make by remember { mutableStateOf(car?.make ?: "") }
-    var model by remember { mutableStateOf(car?.model ?: "") }
-    var year by remember { mutableStateOf(car?.year?.toString() ?: "") }
-    var plate by remember { mutableStateOf(car?.plateNumber ?: "") }
-    var odometer by remember { mutableStateOf(if ((car?.currentOdometer ?: 0.0) > 0) car?.currentOdometer?.toString() ?: "" else "") }
+    val isEdit = existingCar != null
 
-    AlertDialog(
+    var name by remember { mutableStateOf(existingCar?.name ?: "") }
+    var make by remember { mutableStateOf(existingCar?.make ?: "") }
+    var model by remember { mutableStateOf(existingCar?.model ?: "") }
+    var year by remember { mutableStateOf(existingCar?.year?.toString() ?: "") }
+    var plate by remember { mutableStateOf(existingCar?.plateNumber ?: "") }
+    var odometer by remember {
+        mutableStateOf(
+            if ((existingCar?.currentOdometer ?: 0.0) > 0)
+                String.format(Locale.US, "%.0f", existingCar!!.currentOdometer)
+            else ""
+        )
+    }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(if (car == null) "Add Car" else "Edit Car") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it },
-                    label = { Text("Car Name (e.g. My Toyota)") }, modifier = Modifier.fillMaxWidth())
+        containerColor = SurfaceContainer,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = {
+            Box(Modifier.padding(top = 12.dp, bottom = 4.dp).size(width = 36.dp, height = 4.dp)
+                .clip(RoundedCornerShape(2.dp)).background(SurfaceContainerHighest))
+        }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp).padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                if (isEdit) "Edit Car" else "Add Car",
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = OnSurfacePrimary
+            )
+
+            OutlinedTextField(value = name, onValueChange = { name = it },
+                label = { Text("Car Nickname (e.g. My Camry)") },
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = make, onValueChange = { make = it },
-                    label = { Text("Make (e.g. Toyota)") }, modifier = Modifier.fillMaxWidth())
+                    label = { Text("Make") }, modifier = Modifier.weight(1f), colors = sheetFieldColors())
                 OutlinedTextField(value = model, onValueChange = { model = it },
-                    label = { Text("Model (e.g. Corolla)") }, modifier = Modifier.fillMaxWidth())
+                    label = { Text("Model") }, modifier = Modifier.weight(1f), colors = sheetFieldColors())
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = year, onValueChange = { year = it },
                     label = { Text("Year") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth())
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
                 OutlinedTextField(value = plate, onValueChange = { plate = it },
-                    label = { Text("Plate Number") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = odometer, onValueChange = { odometer = it },
-                    label = { Text("Current Odometer (km)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth())
+                    label = { Text("Plate") }, modifier = Modifier.weight(1f), colors = sheetFieldColors())
             }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                if (name.isBlank() || make.isBlank() || model.isBlank()) return@TextButton
-                val y = year.toIntOrNull() ?: return@TextButton
-                val odo = odometer.toDoubleOrNull() ?: 0.0
-                onConfirm(name, make, model, y, plate, odo)
-            }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
+
+            OutlinedTextField(value = odometer, onValueChange = { odometer = it },
+                label = { Text("Current Odometer (km)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
+
+            Button(
+                onClick = {
+                    if (name.isBlank() || make.isBlank() || model.isBlank()) return@Button
+                    val y = year.toIntOrNull() ?: return@Button
+                    val odo = odometer.toDoubleOrNull() ?: 0.0
+                    onSave(name, make, model, y, plate, odo)
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
+                shape = RoundedCornerShape(14.dp)
+            ) { Text(if (isEdit) "Update" else "Add Car", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        }
+    }
 }

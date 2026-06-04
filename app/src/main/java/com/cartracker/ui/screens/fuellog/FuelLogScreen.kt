@@ -24,7 +24,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.FuelLog
+import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.FuelLogViewModel
 import com.cartracker.ui.viewmodel.FuelLogViewModelFactory
@@ -33,7 +35,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FuelLogScreen(carId: Long?) {
+fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
     val viewModel: FuelLogViewModel = viewModel(
         factory = FuelLogViewModelFactory(context.applicationContext as android.app.Application)
@@ -41,9 +43,11 @@ fun FuelLogScreen(carId: Long?) {
     val fuelLogs by viewModel.fuelLogs.observeAsState(emptyList())
     val lastOdometer by viewModel.lastOdometer.observeAsState(null)
 
+    val selectedCar = cars.firstOrNull { it.id == carId }
     var editingLog by remember { mutableStateOf<FuelLog?>(null) }
     var showSheet by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<FuelLog?>(null) }
+    var showCarPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
 
@@ -51,11 +55,22 @@ fun FuelLogScreen(carId: Long?) {
         containerColor = TrueBlack,
         topBar = {
             TopAppBar(
-                title = { Text("Fuel Log", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SurfaceContainer,
-                    titleContentColor = OnSurfacePrimary
-                )
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text("Fuel Log", fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                        if (selectedCar != null) {
+                            Text(selectedCar.name, color = NeonCyan, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                },
+                actions = {
+                    if (cars.size > 1) {
+                        IconButton(onClick = { showCarPicker = true }) {
+                            Icon(Icons.Filled.SwapHoriz, "Switch car", tint = NeonCyan)
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceContainer, titleContentColor = OnSurfacePrimary)
             )
         },
         floatingActionButton = {
@@ -126,6 +141,10 @@ fun FuelLogScreen(carId: Long?) {
                 TextButton(onClick = { deleteTarget = null }) { Text("Cancel", color = OnSurfaceSecondary) }
             }
         )
+    }
+
+    if (showCarPicker && cars.size > 1) {
+        CarPickerSheet(cars = cars, selectedCarId = carId, onSelect = { onCarSelected(it); showCarPicker = false }, onDismiss = { showCarPicker = false })
     }
 }
 
