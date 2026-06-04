@@ -123,7 +123,7 @@ fun DashboardScreen(
                 // ── TOP 25%: Glassmorphic hero card ───────────────────────
                 HeroCard(
                     odometer = stats?.totalMileage ?: 0.0,
-                    fuelPercent = 0.72f,
+                    fuelPercent = stats?.fuelPercent ?: 0.72f,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
 

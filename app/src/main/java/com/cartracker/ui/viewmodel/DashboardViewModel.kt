@@ -20,7 +20,8 @@ data class DashboardStats(
     val avgKmPerTank: Double = 0.0,
     val avgDaysBetweenFillups: Double = 0.0,
     val costPerKm: Double = 0.0,
-    val monthlyStats: List<MonthlyFuelStat> = emptyList()
+    val monthlyStats: List<MonthlyFuelStat> = emptyList(),
+    val fuelPercent: Float = 0.72f
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -88,6 +89,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
 
+            val car = repository.getCarById(carId)
+            val lastFuelOdo = allLogs.lastOrNull()?.odometer
+            val fuelPercent = if (car != null && lastFuelOdo != null && avgKmPerTank > 0) {
+                val kmSince = (car.currentOdometer - lastFuelOdo).coerceAtLeast(0.0)
+                (1.0 - kmSince / avgKmPerTank).toFloat().coerceIn(0f, 1f)
+            } else 0.72f
+
             _stats.value = DashboardStats(
                 totalMileage = totalMileage,
                 lastServiceDate = lastService?.date,
@@ -97,7 +105,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 avgKmPerTank = avgKmPerTank,
                 avgDaysBetweenFillups = avgDaysBetweenFillups,
                 costPerKm = costPerKm,
-                monthlyStats = monthlyStats
+                monthlyStats = monthlyStats,
+                fuelPercent = fuelPercent
             )
         }
     }
