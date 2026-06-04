@@ -31,8 +31,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.FuelLog
 import com.cartracker.ui.theme.*
+import com.cartracker.ui.viewmodel.DashboardStats
 import com.cartracker.ui.viewmodel.DashboardViewModel
 import com.cartracker.ui.viewmodel.DashboardViewModelFactory
+import com.cartracker.ui.viewmodel.MonthlyFuelStat
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -145,6 +147,14 @@ fun DashboardScreen(
                         modifier = Modifier.weight(0.85f)
                     )
                 }
+
+                Spacer(Modifier.height(12.dp))
+
+                // ── ANALYTICS ────────────────────────────────────────────
+                AnalyticsSection(
+                    stats = stats,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
             }
         }
 
@@ -747,6 +757,191 @@ private fun EmptyState(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodySmall,
                 color = OnSurfaceSecondary
             )
+        }
+    }
+}
+
+// ─── Analytics Section ────────────────────────────────────────────────────────
+
+@Composable
+private fun AnalyticsSection(stats: DashboardStats?, modifier: Modifier = Modifier) {
+    if (stats == null) return
+    val hasData = stats.avgKmPerTank > 0 || stats.monthlyStats.any { it.cost > 0 }
+    if (!hasData) return
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "PERFORMANCE",
+            color = OnSurfaceSecondary,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 2.sp
+        )
+
+        // Stat snapshot row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SnapStat(
+                label = "Avg Range",
+                value = if (stats.avgKmPerTank > 0) "%.0f km".format(stats.avgKmPerTank) else "--",
+                sub = "per tank",
+                modifier = Modifier.weight(1f)
+            )
+            SnapStat(
+                label = "Fill-up",
+                value = if (stats.avgDaysBetweenFillups > 0) "%.1f d".format(stats.avgDaysBetweenFillups) else "--",
+                sub = "avg interval",
+                modifier = Modifier.weight(1f)
+            )
+            SnapStat(
+                label = "Cost / km",
+                value = if (stats.costPerKm > 0) "$%.3f".format(stats.costPerKm) else "--",
+                sub = "fuel cost",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Monthly spend bar chart
+        if (stats.monthlyStats.any { it.cost > 0 }) {
+            BentoCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                        Text("Monthly Spend", color = OnSurfacePrimary,
+                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        val totalSpend = stats.monthlyStats.sumOf { it.cost }
+                        if (totalSpend > 0) {
+                            Text("$%.0f total".format(totalSpend), color = OnSurfaceSecondary,
+                                style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    MonthlyBarChart(
+                        months = stats.monthlyStats,
+                        modifier = Modifier.fillMaxWidth().height(120.dp)
+                    )
+                }
+            }
+        }
+
+        // Fuel economy trend (enlarged)
+        if (stats.recentFuelLogs.size >= 3) {
+            BentoCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                        Text("Fuel Economy Trend", color = OnSurfacePrimary,
+                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        if (stats.avgFuelEfficiency > 0) {
+                            Text("%.1f km/L avg".format(stats.avgFuelEfficiency), color = NeonCyan,
+                                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    EconomyTrendChart(
+                        logs = stats.recentFuelLogs,
+                        modifier = Modifier.fillMaxWidth().height(80.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun SnapStat(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
+    BentoCard(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(label, color = OnSurfaceSecondary, fontSize = 10.sp,
+                fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
+            Text(value, color = OnSurfacePrimary, fontWeight = FontWeight.Black,
+                fontSize = 18.sp, lineHeight = 20.sp)
+            Text(sub, color = OnSurfaceSecondary, fontSize = 10.sp)
+        }
+    }
+}
+
+@Composable
+private fun MonthlyBarChart(months: List<MonthlyFuelStat>, modifier: Modifier = Modifier) {
+    val maxCost = remember(months) { months.maxOfOrNull { it.cost }?.coerceAtLeast(1.0) ?: 1.0 }
+    val barMaxDp = 80.dp
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        months.forEach { stat ->
+            val barH = if (stat.cost > 0)
+                ((stat.cost / maxCost) * barMaxDp.value).dp.coerceAtLeast(4.dp)
+            else 2.dp
+
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                if (stat.cost > 0) {
+                    Text("$%.0f".format(stat.cost), fontSize = 8.sp, color = OnSurfaceSecondary, lineHeight = 10.sp)
+                    Spacer(Modifier.height(3.dp))
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(barH)
+                        .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                        .background(
+                            if (stat.cost > 0)
+                                Brush.verticalGradient(listOf(NeonCyan, NeonCyanDim))
+                            else
+                                Brush.verticalGradient(listOf(SurfaceContainerHighest, SurfaceContainerHighest))
+                        )
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(stat.label, fontSize = 9.sp, color = OnSurfaceSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EconomyTrendChart(logs: List<com.cartracker.data.db.entities.FuelLog>, modifier: Modifier = Modifier) {
+    val points = remember(logs) {
+        logs.sortedBy { it.date }.map { it.fuelEfficiency.toFloat() }.filter { it > 0f }
+    }
+    if (points.size < 2) return
+
+    val minV = points.min(); val maxV = points.max()
+    val range = (maxV - minV).coerceAtLeast(0.1f)
+
+    Canvas(modifier = modifier) {
+        val stepX = size.width / (points.size - 1)
+        val offsets = points.mapIndexed { i, v ->
+            Offset(
+                x = i * stepX,
+                y = size.height - ((v - minV) / range) * size.height * 0.82f - size.height * 0.09f
+            )
+        }
+
+        val areaPath = Path().apply {
+            moveTo(offsets.first().x, size.height)
+            offsets.forEach { lineTo(it.x, it.y) }
+            lineTo(offsets.last().x, size.height); close()
+        }
+        drawPath(areaPath, brush = Brush.verticalGradient(
+            colors = listOf(Color(0x3000E5FF), Color.Transparent), startY = 0f, endY = size.height))
+
+        val linePath = Path().apply {
+            offsets.forEachIndexed { i, o -> if (i == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }
+        }
+        drawPath(linePath,
+            brush = Brush.horizontalGradient(listOf(NeonCyanDim, NeonCyan), 0f, size.width),
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+        offsets.lastOrNull()?.let {
+            drawCircle(Color(0x5000E5FF), radius = 5.dp.toPx(), center = it)
+            drawCircle(NeonCyan, radius = 2.5.dp.toPx(), center = it)
         }
     }
 }
