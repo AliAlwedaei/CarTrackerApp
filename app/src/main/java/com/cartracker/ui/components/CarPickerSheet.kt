@@ -7,12 +7,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cartracker.data.db.entities.Car
@@ -70,14 +70,15 @@ fun CarPickerSheet(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Box(
-                            Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
+                            Modifier.size(42.dp).clip(RoundedCornerShape(10.dp))
                                 .background(if (isSelected) NeonCyanGlow else SurfaceContainerHighest),
                             Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Filled.DirectionsCar, null,
-                                tint = if (isSelected) NeonCyan else OnSurfaceSecondary,
-                                modifier = Modifier.size(20.dp)
+                            CarLogoImage(
+                                make = car.make,
+                                modifier = Modifier.size(30.dp),
+                                tint = if (isSelected) NeonCyan else Color.White,
+                                fallbackTint = if (isSelected) NeonCyan else OnSurfaceSecondary
                             )
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

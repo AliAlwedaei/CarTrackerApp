@@ -18,11 +18,13 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cartracker.data.db.entities.Car
+import com.cartracker.ui.components.CarLogoImage
 import com.cartracker.ui.screens.fuellog.sheetFieldColors
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.CarsViewModel
@@ -128,11 +130,16 @@ private fun CarCard(car: Car, isActive: Boolean, onSelect: () -> Unit, onEdit: (
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.Top) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
+                        Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
                             .background(if (isActive) NeonCyanGlow else SurfaceContainerHigh),
                         Alignment.Center
                     ) {
-                        Icon(Icons.Filled.DirectionsCar, null, tint = if (isActive) NeonCyan else OnSurfaceSecondary, modifier = Modifier.size(22.dp))
+                        CarLogoImage(
+                            make = car.make,
+                            modifier = Modifier.size(34.dp),
+                            tint = if (isActive) NeonCyan else Color.White,
+                            fallbackTint = if (isActive) NeonCyan else OnSurfaceSecondary
+                        )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

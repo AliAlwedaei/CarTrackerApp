@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.FuelLog
+import com.cartracker.ui.components.CarLogoImage
 import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.DashboardStats
@@ -83,21 +84,38 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "MY GARAGE",
-                        color = OnSurfaceSecondary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 2.sp
-                    )
-                    Text(
-                        text = selectedCar?.name
-                            ?: if (cars.isEmpty()) "Add a Car" else "Select Car",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = OnSurfacePrimary,
-                        fontWeight = FontWeight.Bold
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (selectedCar != null) {
+                        Box(
+                            Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
+                                .background(SurfaceContainerHigh),
+                            Alignment.Center
+                        ) {
+                            CarLogoImage(
+                                make = selectedCar.make,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "MY GARAGE",
+                            color = OnSurfaceSecondary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 2.sp
+                        )
+                        Text(
+                            text = selectedCar?.name
+                                ?: if (cars.isEmpty()) "Add a Car" else "Select Car",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = OnSurfacePrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 if (cars.size > 1) {
                     Box(
