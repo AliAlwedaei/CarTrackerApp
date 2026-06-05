@@ -15,6 +15,7 @@ class CarTrackerRepository(
     // Cars
     val allCars: Flow<List<Car>> = carDao.getAllCars()
     suspend fun getCarById(id: Long) = carDao.getCarById(id)
+    fun getCarFlow(id: Long) = carDao.getCarFlow(id)
     suspend fun getAllCarsOnce() = carDao.getAllCarsOnce()
     suspend fun insertCar(car: Car) = carDao.insertCar(car)
     suspend fun updateCar(car: Car) = carDao.updateCar(car)
@@ -52,7 +53,8 @@ class CarTrackerRepository(
     fun getHealthChecksForCar(carId: Long): Flow<List<HealthCheck>> = healthCheckDao.getHealthChecksForCar(carId)
     suspend fun getHealthCheck(carId: Long, type: HealthCheckType) = healthCheckDao.getHealthCheck(carId, type)
     suspend fun insertHealthCheck(check: HealthCheck) = healthCheckDao.insertHealthCheck(check)
-    suspend fun markHealthCheckDone(carId: Long, type: HealthCheckType, timestamp: Long) = healthCheckDao.markDone(carId, type, timestamp)
+    suspend fun markHealthCheckDone(carId: Long, type: HealthCheckType, timestamp: Long, odometer: Double, notes: String? = null) = healthCheckDao.markDone(carId, type, timestamp, odometer, notes)
+    suspend fun setHealthCheckKmData(carId: Long, type: HealthCheckType, intervalKm: Int, odometer: Double) = healthCheckDao.setKmData(carId, type, intervalKm, odometer)
 
     // Reminders
     fun getRemindersForCar(carId: Long): Flow<List<Reminder>> = reminderDao.getRemindersForCar(carId)

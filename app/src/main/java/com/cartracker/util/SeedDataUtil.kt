@@ -14,6 +14,7 @@ object SeedDataUtil {
         seedV2(context, prefs)
         seedV3(context, prefs)
         seedV4(context, prefs)
+        seedV5(context, prefs)
     }
 
     private suspend fun seedV3(context: Context, prefs: android.content.SharedPreferences) {
@@ -70,6 +71,23 @@ object SeedDataUtil {
         repo.insertReminder(Reminder(carId = civicId, title = "Insurance Renewal", type = ReminderType.DATE, targetDate = daysAhead(23), notes = "Policy #CV-8821-2024"))
 
         prefs.edit().putBoolean("seed_done_v3", true).apply()
+    }
+
+    private suspend fun seedV5(context: Context, prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean("seed_done_v5", false)) return
+        val repo = (context.applicationContext as CarTrackerApp).repository
+
+        val allCars = repo.getAllCarsOnce()
+        val camry = allCars.firstOrNull { it.make == "Toyota" && it.model == "Camry" } ?: return
+        val civic = allCars.firstOrNull { it.make == "Honda" && it.model == "Civic" } ?: return
+
+        // Camry: oil changed 21 days ago at 45,000 km → 1,920 km since → 3,080 km left (OVERDUE by time, OK by km)
+        repo.setHealthCheckKmData(camry.id, HealthCheckType.ENGINE_OIL, intervalKm = 5000, odometer = 45000.0)
+
+        // Civic: oil changed 10 days ago at 82,250 km → 60 km since → 4,940 km left (DUE_SOON by time, OK by km)
+        repo.setHealthCheckKmData(civic.id, HealthCheckType.ENGINE_OIL, intervalKm = 5000, odometer = 82250.0)
+
+        prefs.edit().putBoolean("seed_done_v5", true).apply()
     }
 
     private suspend fun seedV4(context: Context, prefs: android.content.SharedPreferences) {

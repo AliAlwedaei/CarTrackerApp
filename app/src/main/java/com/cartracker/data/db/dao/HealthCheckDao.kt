@@ -19,6 +19,9 @@ interface HealthCheckDao {
     @Update
     suspend fun updateHealthCheck(check: HealthCheck)
 
-    @Query("UPDATE health_checks SET lastCheckedAt = :timestamp WHERE carId = :carId AND checkType = :type")
-    suspend fun markDone(carId: Long, type: HealthCheckType, timestamp: Long)
+    @Query("UPDATE health_checks SET lastCheckedAt = :timestamp, lastCheckedAtOdometer = :odometer, notes = :notes WHERE carId = :carId AND checkType = :type")
+    suspend fun markDone(carId: Long, type: HealthCheckType, timestamp: Long, odometer: Double, notes: String?)
+
+    @Query("UPDATE health_checks SET intervalKm = :intervalKm, lastCheckedAtOdometer = :odometer WHERE carId = :carId AND checkType = :type")
+    suspend fun setKmData(carId: Long, type: HealthCheckType, intervalKm: Int, odometer: Double)
 }

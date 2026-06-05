@@ -73,5 +73,8 @@ data class HealthCheck(
     val checkType: HealthCheckType,
     val lastCheckedAt: Long? = null,
     val intervalDays: Int = checkType.defaultIntervalDays,
+    val intervalKm: Int? = null,
+    val lastCheckedAtOdometer: Double? = null,
+    val notes: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
