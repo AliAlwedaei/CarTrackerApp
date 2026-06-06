@@ -37,7 +37,8 @@ data class DashboardStats(
     val fuelPriceHistory: List<Float> = emptyList(),
     val ytdTotalCost: Double = 0.0,
     val overdueChecksCount: Int = 0,
-    val dueSoonChecksCount: Int = 0
+    val dueSoonChecksCount: Int = 0,
+    val projectedAnnualTotalCost: Double = 0.0
 ) {
     val monthlyTotalCost get() = monthlyFuelCost + monthlyMaintCost + monthlyExpenseCost
 }
@@ -166,6 +167,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
 
+            // Annual projection: extrapolate YTD spend over remaining months
+            val dayOfYear = Calendar.getInstance().get(Calendar.DAY_OF_YEAR).toDouble()
+            val projectedAnnualTotalCost = if (dayOfYear > 0 && ytdTotalCost > 0)
+                (ytdTotalCost / dayOfYear) * 365.0 else 0.0
+
             _stats.value = DashboardStats(
                 totalMileage = totalMileage,
                 lastServiceDate = lastService?.date,
@@ -182,7 +188,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 fuelPriceHistory = fuelPriceHistory,
                 ytdTotalCost = ytdTotalCost,
                 overdueChecksCount = overdueCount,
-                dueSoonChecksCount = dueSoonCount
+                dueSoonChecksCount = dueSoonCount,
+                projectedAnnualTotalCost = projectedAnnualTotalCost
             )
         }
     }

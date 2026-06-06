@@ -37,7 +37,13 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
+fun FuelLogScreen(
+    carId: Long?,
+    cars: List<Car> = emptyList(),
+    onCarSelected: (Long) -> Unit = {},
+    autoOpenSheet: Boolean = false,
+    onSheetHandled: () -> Unit = {}
+) {
     val context = LocalContext.current
     val currency = remember { CurrencyPrefs.getSymbol(context) }
     val viewModel: FuelLogViewModel = viewModel(
@@ -59,6 +65,9 @@ fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (L
     var showCarPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
+    LaunchedEffect(autoOpenSheet) {
+        if (autoOpenSheet && carId != null) { showSheet = true; onSheetHandled() }
+    }
 
     Scaffold(
         containerColor = TrueBlack,

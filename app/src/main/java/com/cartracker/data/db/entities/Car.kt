@@ -12,5 +12,6 @@ data class Car(
     val year: Int,
     val plateNumber: String,
     val currentOdometer: Double = 0.0,
+    val photoUri: String = "",
     val createdAt: Long = System.currentTimeMillis()
 )

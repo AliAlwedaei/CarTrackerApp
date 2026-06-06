@@ -19,6 +19,7 @@ class CarsViewModel(application: Application) : AndroidViewModel(application) {
     fun insertCar(car: Car) = viewModelScope.launch { repository.insertCar(car) }
     fun updateCar(car: Car) = viewModelScope.launch { repository.updateCar(car) }
     fun deleteCar(car: Car) = viewModelScope.launch { repository.deleteCar(car) }
+    fun updateCarPhoto(carId: Long, photoUri: String) = viewModelScope.launch { repository.updateCarPhoto(carId, photoUri) }
 }
 
 class CarsViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,6 +15,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.input.KeyboardType
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,7 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.os.LocaleListCompat
 import com.cartracker.R
+import com.cartracker.ui.screens.fuellog.sheetFieldColors
 import com.cartracker.ui.theme.*
+import com.cartracker.util.BudgetPrefs
 import com.cartracker.util.CurrencyPrefs
 
 data class LangOption(val tag: String, val label: String, val labelNative: String)
@@ -42,6 +47,8 @@ fun SettingsScreen(onBack: () -> Unit, onViewReports: () -> Unit = {}) {
     val currentTag = if (currentLocales.isEmpty) "en" else currentLocales[0]?.language ?: "en"
 
     var currentCurrency by remember { mutableStateOf(CurrencyPrefs.getSymbol(context)) }
+    var fuelBudgetText by remember { mutableStateOf(BudgetPrefs.getMonthlyFuelBudget(context)?.let { String.format(Locale.US, "%.3f", it) } ?: "") }
+    var totalBudgetText by remember { mutableStateOf(BudgetPrefs.getMonthlyTotalBudget(context)?.let { String.format(Locale.US, "%.3f", it) } ?: "") }
 
     Scaffold(
         containerColor = TrueBlack,
@@ -77,6 +84,39 @@ fun SettingsScreen(onBack: () -> Unit, onViewReports: () -> Unit = {}) {
                     }
                 }
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = NeonCyan, modifier = Modifier.size(18.dp))
+            }
+
+            // ── Monthly Budget ────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("MONTHLY BUDGET", color = NeonCyan, fontSize = 10.sp, fontWeight = FontWeight.Medium, letterSpacing = 2.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = fuelBudgetText,
+                        onValueChange = { fuelBudgetText = it },
+                        label = { Text("Fuel budget ($currentCurrency)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                        colors = sheetFieldColors()
+                    )
+                    OutlinedTextField(
+                        value = totalBudgetText,
+                        onValueChange = { totalBudgetText = it },
+                        label = { Text("Total budget ($currentCurrency)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                        colors = sheetFieldColors()
+                    )
+                }
+                Button(
+                    onClick = {
+                        BudgetPrefs.setMonthlyFuelBudget(context, fuelBudgetText.toDoubleOrNull())
+                        BudgetPrefs.setMonthlyTotalBudget(context, totalBudgetText.toDoubleOrNull())
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Save Budgets", fontWeight = FontWeight.SemiBold) }
+                Text("Leave blank to disable budget tracking.", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
             }
 
             // ── Currency ──────────────────────────────────────────────────

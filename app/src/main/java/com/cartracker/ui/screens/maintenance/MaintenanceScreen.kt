@@ -34,6 +34,7 @@ import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.MaintenanceViewModel
 import com.cartracker.ui.viewmodel.MaintenanceViewModelFactory
 import com.cartracker.util.CurrencyPrefs
+import com.cartracker.util.ServiceTemplates
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -56,7 +57,13 @@ private val categoryIcons = mapOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
+fun MaintenanceScreen(
+    carId: Long?,
+    cars: List<Car> = emptyList(),
+    onCarSelected: (Long) -> Unit = {},
+    autoOpenSheet: Boolean = false,
+    onSheetHandled: () -> Unit = {}
+) {
     val context = LocalContext.current
     val currency = remember { CurrencyPrefs.getSymbol(context) }
     val viewModel: MaintenanceViewModel = viewModel(
@@ -71,6 +78,9 @@ fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected
     var showCarPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
+    LaunchedEffect(autoOpenSheet) {
+        if (autoOpenSheet && carId != null) { showSheet = true; onSheetHandled() }
+    }
 
     Scaffold(
         containerColor = TrueBlack,
@@ -357,6 +367,33 @@ private fun MaintenanceSheet(
                     label = { Text("Cost ($currency)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
+            }
+
+            // Service template suggestion
+            val template = ServiceTemplates.forCategory(selectedCategory)
+            val currentMileageVal = mileage.toDoubleOrNull()
+            if (template != null && currentMileageVal != null && nextServiceKm.isBlank()) {
+                val suggestedNextKm = (currentMileageVal + template.intervalKm).toInt()
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(NeonCyanGlow)
+                        .border(1.dp, NeonCyanBorder, RoundedCornerShape(10.dp))
+                        .clickable { nextServiceKm = suggestedNextKm.toString() }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.Lightbulb, null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text("Recommended: next at %,d km".format(suggestedNextKm),
+                                color = NeonCyan, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                            Text(template.intervalLabel, color = NeonCyan.copy(alpha = 0.7f), fontSize = 10.sp)
+                        }
+                    }
+                    Text("Use", color = NeonCyan, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                }
             }
 
             OutlinedTextField(value = garage, onValueChange = { garage = it },

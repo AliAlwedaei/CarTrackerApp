@@ -29,4 +29,7 @@ interface CarDao {
 
     @Query("UPDATE cars SET currentOdometer = :odometer WHERE id = :carId")
     suspend fun updateOdometer(carId: Long, odometer: Double)
+
+    @Query("UPDATE cars SET photoUri = :photoUri WHERE id = :carId")
+    suspend fun updatePhotoUri(carId: Long, photoUri: String)
 }

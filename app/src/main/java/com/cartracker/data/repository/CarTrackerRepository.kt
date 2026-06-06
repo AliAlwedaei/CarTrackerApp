@@ -23,6 +23,7 @@ class CarTrackerRepository(
     suspend fun updateCar(car: Car) = carDao.updateCar(car)
     suspend fun deleteCar(car: Car) = carDao.deleteCar(car)
     suspend fun updateOdometer(carId: Long, odometer: Double) = carDao.updateOdometer(carId, odometer)
+    suspend fun updateCarPhoto(carId: Long, photoUri: String) = carDao.updatePhotoUri(carId, photoUri)
 
     // Fuel Logs
     fun getFuelLogsForCar(carId: Long): Flow<List<FuelLog>> = fuelLogDao.getFuelLogsForCar(carId)

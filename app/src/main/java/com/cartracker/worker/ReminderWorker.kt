@@ -2,16 +2,18 @@ package com.cartracker.worker
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.work.*
 import com.cartracker.CarTrackerApp
+import com.cartracker.MainActivity
 import com.cartracker.data.db.entities.HealthCheckType
 import com.cartracker.data.db.entities.ReminderType
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -31,7 +33,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     reminder.targetDate <= now + TimeUnit.DAYS.toMillis(3)
                 ReminderType.MILEAGE -> reminder.targetMileage != null && run {
                     val odo = repository.getCarById(reminder.carId)?.currentOdometer ?: 0.0
-                    odo >= reminder.targetMileage - 500  // within 500 km of target
+                    odo >= reminder.targetMileage - 500
                 }
             }
             if (shouldNotify) {
@@ -39,8 +41,14 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     ReminderType.DATE -> reminder.targetDate?.let { "Due ${sdf.format(Date(it))}" } ?: reminder.title
                     ReminderType.MILEAGE -> reminder.targetMileage?.let { String.format(Locale.US, "At %.0f km", it) } ?: reminder.title
                 }
-                notify(notificationManager, id = reminder.id.toInt(),
-                    channelId = CHANNEL_REMINDERS, title = reminder.title, text = text)
+                notify(
+                    manager = notificationManager,
+                    id = reminder.id.toInt(),
+                    channelId = CHANNEL_REMINDERS,
+                    title = reminder.title,
+                    text = text,
+                    deepLinkRoute = ROUTE_REMINDERS
+                )
             }
         }
 
@@ -61,13 +69,10 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 val lastOdo = backingLog?.mileage ?: check.lastCheckedAtOdometer
 
                 val daysSince = lastAt?.let { (now - it) / dayMs }
-                val daysUntilDue = if (daysSince != null) check.intervalDays - daysSince
-                                   else -check.intervalDays.toLong()
+                val daysUntilDue = if (daysSince != null) check.intervalDays - daysSince else -check.intervalDays.toLong()
 
-                val kmSince = if (check.intervalKm != null && lastOdo != null)
-                    car.currentOdometer - lastOdo else null
-                val kmUntilDue = if (check.intervalKm != null && kmSince != null)
-                    check.intervalKm - kmSince else null
+                val kmSince = if (check.intervalKm != null && lastOdo != null) car.currentOdometer - lastOdo else null
+                val kmUntilDue = if (check.intervalKm != null && kmSince != null) check.intervalKm - kmSince else null
 
                 val isOverdue = (lastAt == null) || (daysUntilDue < 0) || (kmUntilDue != null && kmUntilDue < 0)
                 if (isOverdue) {
@@ -77,11 +82,12 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                         else -> "${(-daysUntilDue)}d overdue"
                     }
                     notify(
-                        notificationManager,
+                        manager = notificationManager,
                         id = (car.id * 100 + check.checkType.ordinal).toInt(),
                         channelId = CHANNEL_HEALTH,
                         title = "${car.name} — ${check.checkType.displayName}",
-                        text = "${check.checkType.displayName} is $reason"
+                        text = "${check.checkType.displayName} is $reason",
+                        deepLinkRoute = ROUTE_HEALTH
                     )
                 }
             }
@@ -90,13 +96,29 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         return Result.success()
     }
 
-    private fun notify(manager: NotificationManager, id: Int, channelId: String, title: String, text: String) {
+    private fun notify(
+        manager: NotificationManager,
+        id: Int,
+        channelId: String,
+        title: String,
+        text: String,
+        deepLinkRoute: String
+    ) {
+        val intent = Intent(applicationContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_NAVIGATE_TO, deepLinkRoute)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext, id, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         val notification = NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
             .build()
         manager.notify(id, notification)
     }
@@ -117,6 +139,9 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     companion object {
         const val CHANNEL_REMINDERS = "car_tracker_reminders"
         const val CHANNEL_HEALTH    = "car_tracker_health"
+        const val EXTRA_NAVIGATE_TO = "navigate_to"
+        const val ROUTE_REMINDERS   = "reminders"
+        const val ROUTE_HEALTH      = "reminders" // same screen, Health tab opens first
 
         fun scheduleDailyCheck(context: Context) {
             val request = PeriodicWorkRequestBuilder<ReminderWorker>(1, TimeUnit.DAYS)

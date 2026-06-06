@@ -98,6 +98,19 @@ class ReportsViewModel(application: Application) : AndroidViewModel(application)
             ExportUtil.shareText(context, "expenses.csv", ExportUtil.buildExpenseCsv(expenses, currency))
         }
     }
+
+    fun exportPdfReport(context: Context, carId: Long, currency: String) {
+        viewModelScope.launch {
+            val car = repository.getCarById(carId)
+            val fuelLogs = repository.getAllFuelLogsSorted(carId)
+            val maintLogs = repository.getMaintenanceLogsForCar(carId).first()
+            val expenses = repository.getExpensesForCar(carId).first()
+            val totalFuel = repository.getFuelTotalAllTime(carId) ?: 0.0
+            val totalMaint = repository.getMaintenanceTotalAllTime(carId) ?: 0.0
+            val totalExpense = repository.getExpenseTotalAllTime(carId) ?: 0.0
+            ExportUtil.buildPdfReport(context, car, fuelLogs, maintLogs, expenses, totalFuel, totalMaint, totalExpense, currency)
+        }
+    }
 }
 
 class ReportsViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

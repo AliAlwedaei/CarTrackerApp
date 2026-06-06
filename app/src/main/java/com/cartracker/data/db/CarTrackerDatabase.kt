@@ -13,7 +13,7 @@ import com.cartracker.data.db.entities.CustomHealthCheck
 
 @Database(
     entities = [Car::class, FuelLog::class, MaintenanceLog::class, Trip::class, Reminder::class, HealthCheck::class, Expense::class, CustomHealthCheck::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -60,6 +60,12 @@ abstract class CarTrackerDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `reminders` ADD COLUMN `recurrenceKm` INTEGER")
                 db.execSQL("ALTER TABLE `reminders` ADD COLUMN `recurrenceDays` INTEGER")
+            }
+        }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `cars` ADD COLUMN `photoUri` TEXT NOT NULL DEFAULT ''")
             }
         }
 
@@ -122,7 +128,7 @@ abstract class CarTrackerDatabase : RoomDatabase() {
                     CarTrackerDatabase::class.java,
                     "car_tracker_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build()
                     .also { INSTANCE = it }
             }

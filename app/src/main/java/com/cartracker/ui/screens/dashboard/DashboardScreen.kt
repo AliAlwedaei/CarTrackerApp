@@ -31,9 +31,11 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.FuelLog
 import com.cartracker.ui.components.CarLogoImage
+import java.io.File
 import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.R
 import com.cartracker.ui.theme.*
@@ -41,6 +43,7 @@ import com.cartracker.ui.viewmodel.DashboardStats
 import com.cartracker.ui.viewmodel.DashboardViewModel
 import com.cartracker.ui.viewmodel.DashboardViewModelFactory
 import com.cartracker.ui.viewmodel.MonthlySpendStat
+import com.cartracker.util.BudgetPrefs
 import com.cartracker.util.CurrencyPrefs
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
@@ -102,7 +105,16 @@ fun DashboardScreen(
                                 .background(SurfaceContainerHigh),
                             Alignment.Center
                         ) {
-                            CarLogoImage(make = selectedCar.make, modifier = Modifier.size(28.dp))
+                            if (selectedCar.photoUri.isNotBlank() && File(selectedCar.photoUri).exists()) {
+                                AsyncImage(
+                                    model = File(selectedCar.photoUri),
+                                    contentDescription = selectedCar.name,
+                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            } else {
+                                CarLogoImage(make = selectedCar.make, modifier = Modifier.size(28.dp))
+                            }
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -581,6 +593,34 @@ private fun EmptyState(modifier: Modifier = Modifier) {
 // ─── Analytics Section ────────────────────────────────────────────────────────
 
 @Composable
+private fun BudgetProgressBar(
+    label: String,
+    actual: Double,
+    budget: Double,
+    currency: String
+) {
+    val pct = (actual / budget).coerceIn(0.0, 1.0).toFloat()
+    val overBudget = actual > budget
+    val color = if (overBudget) ErrorRed else if (pct > 0.85f) WarnAmber else SuccessGreen
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+            Text(label, color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
+            Text(
+                "$currency %.3f / $currency %.3f".format(actual, budget),
+                color = if (overBudget) ErrorRed else OnSurfacePrimary,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (overBudget) FontWeight.Bold else FontWeight.Normal
+            )
+        }
+        LinearProgressIndicator(
+            progress = { pct },
+            modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)),
+            color = color, trackColor = SurfaceContainerHighest
+        )
+    }
+}
+
+@Composable
 private fun AnalyticsSection(
     stats: DashboardStats?,
     currency: String,
@@ -616,6 +656,41 @@ private fun AnalyticsSection(
                 label = "Cost / km", value = if (stats.costPerKm > 0) "$currency %.3f".format(stats.costPerKm) else "--",
                 sub = "fuel only", modifier = Modifier.weight(1f)
             )
+        }
+
+        // Budget bars (if budgets are set)
+        val context = LocalContext.current
+        val fuelBudget = remember { BudgetPrefs.getMonthlyFuelBudget(context) }
+        val totalBudget = remember { BudgetPrefs.getMonthlyTotalBudget(context) }
+        if (fuelBudget != null || totalBudget != null) {
+            BentoCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("MONTHLY BUDGET", color = OnSurfaceSecondary, fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium, letterSpacing = 2.sp)
+                    fuelBudget?.let {
+                        BudgetProgressBar("Fuel spend", stats.monthlyFuelCost, it, currency)
+                    }
+                    totalBudget?.let {
+                        BudgetProgressBar("Total spend", stats.monthlyTotalCost, it, currency)
+                    }
+                }
+            }
+        }
+
+        // Annual projection
+        if (stats.projectedAnnualTotalCost > 0) {
+            BentoCard(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("PROJECTED ANNUAL SPEND", color = OnSurfaceSecondary, fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium, letterSpacing = 1.5.sp)
+                        Text("$currency %.3f".format(stats.projectedAnnualTotalCost), color = OnSurfacePrimary,
+                            fontWeight = FontWeight.Black, fontSize = 22.sp)
+                        Text("based on year-to-date rate", color = OnSurfaceSecondary, fontSize = 10.sp)
+                    }
+                    Icon(Icons.Filled.TrendingUp, null, tint = NeonCyan, modifier = Modifier.size(28.dp))
+                }
+            }
         }
 
         // Stacked monthly spend bar chart

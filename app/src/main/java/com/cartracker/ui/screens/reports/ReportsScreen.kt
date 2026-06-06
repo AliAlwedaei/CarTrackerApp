@@ -124,6 +124,9 @@ fun ReportsScreen(
                     ExportButton("Export Expenses (CSV)", Icons.Filled.Receipt) {
                         carId?.let { viewModel.exportExpensesCsv(context, it, currency) }
                     }
+                    ExportButton("Export Full Report (PDF)", Icons.Filled.PictureAsPdf) {
+                        carId?.let { viewModel.exportPdfReport(context, it, currency) }
+                    }
                 }
 
                 Spacer(Modifier.height(16.dp))

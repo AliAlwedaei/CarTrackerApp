@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,17 +18,27 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.cartracker.data.db.entities.Car
 import com.cartracker.ui.components.CarLogoImage
 import com.cartracker.ui.screens.fuellog.sheetFieldColors
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.CarsViewModel
+import com.cartracker.util.PhotoUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +88,8 @@ fun CarsScreen(carsViewModel: CarsViewModel) {
                         isActive = car.id == activeId,
                         onSelect = { carsViewModel.selectCar(car.id) },
                         onEdit = { editCar = car; showSheet = true },
-                        onDelete = { deleteTarget = car }
+                        onDelete = { deleteTarget = car },
+                        onUpdatePhoto = { path -> carsViewModel.updateCarPhoto(car.id, path) }
                     )
                 }
             }
@@ -118,7 +130,23 @@ fun CarsScreen(carsViewModel: CarsViewModel) {
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun CarCard(car: Car, isActive: Boolean, onSelect: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun CarCard(
+    car: Car, isActive: Boolean,
+    onSelect: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit,
+    onUpdatePhoto: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            scope.launch(Dispatchers.IO) {
+                val path = PhotoUtil.copyToInternal(context, it, car.id)
+                withContext(Dispatchers.Main) { onUpdatePhoto(path) }
+            }
+        }
+    }
     Box(
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
@@ -131,15 +159,33 @@ private fun CarCard(car: Car, isActive: Boolean, onSelect: () -> Unit, onEdit: (
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
-                            .background(if (isActive) NeonCyanGlow else SurfaceContainerHigh),
+                            .background(if (isActive) NeonCyanGlow else SurfaceContainerHigh)
+                            .clickable {
+                                photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
                         Alignment.Center
                     ) {
-                        CarLogoImage(
-                            make = car.make,
-                            modifier = Modifier.size(34.dp),
-                            tint = if (isActive) NeonCyan else Color.White,
-                            fallbackTint = if (isActive) NeonCyan else OnSurfaceSecondary
-                        )
+                        if (car.photoUri.isNotBlank() && File(car.photoUri).exists()) {
+                            AsyncImage(
+                                model = File(car.photoUri),
+                                contentDescription = car.name,
+                                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            CarLogoImage(
+                                make = car.make,
+                                modifier = Modifier.size(34.dp),
+                                tint = if (isActive) NeonCyan else Color.White,
+                                fallbackTint = if (isActive) NeonCyan else OnSurfaceSecondary
+                            )
+                        }
+                        // Camera overlay hint
+                        Box(Modifier.align(Alignment.BottomEnd).size(16.dp)
+                            .clip(RoundedCornerShape(topStart = 4.dp))
+                            .background(TrueBlack.copy(alpha = 0.6f)), Alignment.Center) {
+                            Icon(Icons.Filled.CameraAlt, null, tint = Color.White, modifier = Modifier.size(10.dp))
+                        }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
