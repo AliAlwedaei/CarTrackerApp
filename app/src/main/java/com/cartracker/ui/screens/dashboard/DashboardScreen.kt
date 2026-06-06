@@ -312,7 +312,7 @@ private fun YtdCard(ytdTotal: Double, currency: String, modifier: Modifier = Mod
             Text("YEAR TO DATE", color = OnSurfaceSecondary, fontSize = 9.sp,
                 fontWeight = FontWeight.Medium, letterSpacing = 1.5.sp)
             Text(
-                if (ytdTotal > 0) "$currency %.3f".format(ytdTotal) else "--",
+                if (ytdTotal > 0) String.format(Locale.US, "$currency %,.3f", ytdTotal) else "--",
                 color = if (ytdTotal > 0) OnSurfacePrimary else OnSurfaceSecondary,
                 fontWeight = FontWeight.Black, fontSize = 20.sp, lineHeight = 22.sp
             )
@@ -334,7 +334,7 @@ private fun MonthlyCard(
             Text("THIS MONTH", color = OnSurfaceSecondary, fontSize = 9.sp,
                 fontWeight = FontWeight.Medium, letterSpacing = 1.5.sp)
             Text(
-                if (total > 0) "$currency %.3f".format(total) else "--",
+                if (total > 0) String.format(Locale.US, "$currency %,.3f", total) else "--",
                 color = if (total > 0) OnSurfacePrimary else OnSurfaceSecondary,
                 fontWeight = FontWeight.Black, fontSize = 20.sp, lineHeight = 22.sp
             )
@@ -528,12 +528,12 @@ private fun FuelPriceCard(priceHistory: List<Float>, currency: String, modifier:
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("FUEL PRICE", color = OnSurfaceSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium, letterSpacing = 2.sp)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("$currency %.3f / L".format(latest), color = OnSurfacePrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(String.format(Locale.US, "$currency %.3f / L", latest), color = OnSurfacePrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     Icon(trendIcon, null, tint = trendColor, modifier = Modifier.size(18.dp))
                 }
                 Text(
                     if (kotlin.math.abs(trend) < 0.005f) "Stable"
-                    else "%+.3f over last ${priceHistory.size} fill-ups".format(trend),
+                    else String.format(Locale.US, "%+.3f over last ${priceHistory.size} fill-ups", trend),
                     color = trendColor, style = MaterialTheme.typography.labelSmall
                 )
             }
@@ -606,7 +606,7 @@ private fun BudgetProgressBar(
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
             Text(label, color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
             Text(
-                "$currency %.3f / $currency %.3f".format(actual, budget),
+                String.format(Locale.US, "$currency %,.3f / $currency %,.3f", actual, budget),
                 color = if (overBudget) ErrorRed else OnSurfacePrimary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (overBudget) FontWeight.Bold else FontWeight.Normal
@@ -645,7 +645,7 @@ private fun AnalyticsSection(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SnapStat(
-                label = "Avg Range", value = if (stats.avgKmPerTank > 0) String.format(Locale.US, "%.0f km", stats.avgKmPerTank) else "--",
+                label = "Avg Range", value = if (stats.avgKmPerTank > 0) String.format(Locale.US, "%,.0f km", stats.avgKmPerTank) else "--",
                 sub = "per tank", modifier = Modifier.weight(1f)
             )
             SnapStat(
@@ -653,7 +653,7 @@ private fun AnalyticsSection(
                 sub = "avg interval", modifier = Modifier.weight(1f)
             )
             SnapStat(
-                label = "Cost / km", value = if (stats.costPerKm > 0) "$currency %.3f".format(stats.costPerKm) else "--",
+                label = "Cost / km", value = if (stats.costPerKm > 0) String.format(Locale.US, "$currency %.3f", stats.costPerKm) else "--",
                 sub = "fuel only", modifier = Modifier.weight(1f)
             )
         }
@@ -684,7 +684,7 @@ private fun AnalyticsSection(
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("PROJECTED ANNUAL SPEND", color = OnSurfaceSecondary, fontSize = 10.sp,
                             fontWeight = FontWeight.Medium, letterSpacing = 1.5.sp)
-                        Text("$currency %.3f".format(stats.projectedAnnualTotalCost), color = OnSurfacePrimary,
+                        Text(String.format(Locale.US, "$currency %,.3f", stats.projectedAnnualTotalCost), color = OnSurfacePrimary,
                             fontWeight = FontWeight.Black, fontSize = 22.sp)
                         Text("based on year-to-date rate", color = OnSurfaceSecondary, fontSize = 10.sp)
                     }
@@ -700,7 +700,7 @@ private fun AnalyticsSection(
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                         Text("Monthly Spend", color = OnSurfacePrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         val totalSpend = stats.monthlyStats.sumOf { it.totalCost }
-                        if (totalSpend > 0) Text("$currency %.3f total".format(totalSpend), color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
+                        if (totalSpend > 0) Text(String.format(Locale.US, "$currency %,.3f total", totalSpend), color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
                     }
                     // Legend
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -765,7 +765,7 @@ private fun StackedMonthlyBarChart(months: List<MonthlySpendStat>, modifier: Mod
 
                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                     if (stat.totalCost > 0) {
-                        Text(String.format(Locale.US, "%.0f", stat.totalCost), fontSize = 8.sp, color = OnSurfaceSecondary, lineHeight = 10.sp)
+                        Text(String.format(Locale.US, "%,.0f", stat.totalCost), fontSize = 8.sp, color = OnSurfaceSecondary, lineHeight = 10.sp)
                         Spacer(Modifier.height(3.dp))
                     }
                     Box(modifier = Modifier.fillMaxWidth().height(totalH).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))) {

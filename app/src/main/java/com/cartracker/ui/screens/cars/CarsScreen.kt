@@ -218,7 +218,7 @@ private fun CarCard(
                     StatChip(label = "Plate", value = car.plateNumber)
                 }
                 if (car.currentOdometer > 0) {
-                    StatChip(label = "Odometer", value = "%.0f km".format(car.currentOdometer))
+                    StatChip(label = "Odometer", value = String.format(Locale.US, "%,d km", car.currentOdometer.toLong()))
                 }
             }
         }

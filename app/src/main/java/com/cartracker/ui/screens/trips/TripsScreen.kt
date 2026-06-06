@@ -75,7 +75,7 @@ fun TripsScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Lon
                                 .clip(RoundedCornerShape(8.dp)).background(NeonCyanGlow)
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text("%.0f km total".format(totalMileage), color = NeonCyan,
+                            Text(String.format(Locale.US, "%,.0f km total", totalMileage), color = NeonCyan,
                                 style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                         }
                     }
@@ -190,18 +190,18 @@ private fun TripCard(trip: Trip, onEdit: () -> Unit, onDelete: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("%.1f km".format(trip.distance), color = OnSurfacePrimary, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                Text(String.format(Locale.US, "%,.1f km", trip.distance), color = OnSurfacePrimary, fontWeight = FontWeight.Black, fontSize = 22.sp)
                 Text("driven", color = OnSurfaceSecondary, style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 Column {
                     Text("Start", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
-                    Text("%.0f km".format(trip.startOdometer), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall)
+                    Text(String.format(Locale.US, "%,.0f km", trip.startOdometer), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall)
                 }
                 Column {
                     Text("End", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
-                    Text("%.0f km".format(trip.endOdometer), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall)
+                    Text(String.format(Locale.US, "%,.0f km", trip.endOdometer), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall)
                 }
             }
             if (trip.notes.isNotBlank()) {
@@ -323,7 +323,7 @@ private fun TripSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Distance", color = NeonCyan, style = MaterialTheme.typography.bodyMedium)
-                    Text("%.1f km".format(computedDistance), color = NeonCyan, fontWeight = FontWeight.Bold)
+                    Text(String.format(Locale.US, "%,.1f km", computedDistance), color = NeonCyan, fontWeight = FontWeight.Bold)
                 }
             }
 

@@ -146,8 +146,8 @@ fun ExpenseScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            SummaryCard("THIS MONTH", if (monthlyTotal > 0) "$currency %.3f".format(monthlyTotal) else "--", Modifier.weight(1f))
-                            SummaryCard("ALL TIME", if (allTimeTotal > 0) "$currency %.3f".format(allTimeTotal) else "--", Modifier.weight(1f))
+                            SummaryCard("THIS MONTH", if (monthlyTotal > 0) String.format(Locale.US, "$currency %,.3f", monthlyTotal) else "--", Modifier.weight(1f))
+                            SummaryCard("ALL TIME", if (allTimeTotal > 0) String.format(Locale.US, "$currency %,.3f", allTimeTotal) else "--", Modifier.weight(1f))
                         }
                         Spacer(Modifier.height(4.dp))
                     }
@@ -261,7 +261,7 @@ private fun ExpenseCard(expense: Expense, currency: String, onEdit: () -> Unit, 
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("$currency %.3f".format(expense.amount), color = OnSurfacePrimary,
+                    Text(String.format(Locale.US, "$currency %,.3f", expense.amount), color = OnSurfacePrimary,
                         fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                     IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Filled.Edit, "Edit", tint = NeonCyan, modifier = Modifier.size(16.dp))

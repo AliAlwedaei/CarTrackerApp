@@ -85,8 +85,8 @@ fun ReportsScreen(
                 // ── Monthly Averages ───────────────────────────────────────
                 SectionHeader("MONTHLY AVERAGES", Icons.Filled.CalendarMonth)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ReportStatCard("Avg Fuel/mo", if (data.avgMonthlyFuel > 0) "$currency %.3f".format(data.avgMonthlyFuel) else "--", Icons.Filled.LocalGasStation, NeonCyan, Modifier.weight(1f))
-                    ReportStatCard("Avg Service/mo", if (data.avgMonthlyMaint > 0) "$currency %.3f".format(data.avgMonthlyMaint) else "--", Icons.Filled.Build, WarnAmber, Modifier.weight(1f))
+                    ReportStatCard("Avg Fuel/mo", if (data.avgMonthlyFuel > 0) String.format(Locale.US, "$currency %,.3f", data.avgMonthlyFuel) else "--", Icons.Filled.LocalGasStation, NeonCyan, Modifier.weight(1f))
+                    ReportStatCard("Avg Service/mo", if (data.avgMonthlyMaint > 0) String.format(Locale.US, "$currency %,.3f", data.avgMonthlyMaint) else "--", Icons.Filled.Build, WarnAmber, Modifier.weight(1f))
                 }
 
                 // ── Fuel Performance ──────────────────────────────────────
@@ -96,8 +96,8 @@ fun ReportsScreen(
                     ReportStatCard("Avg Economy", if (data.avgEfficiency > 0) "%.1f km/L".format(data.avgEfficiency) else "--", Icons.Filled.Speed, SuccessGreen, Modifier.weight(1f))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ReportStatCard("Total Fuel Cost", if (data.totalFuelCost > 0) "$currency %.3f".format(data.totalFuelCost) else "--", Icons.Filled.AttachMoney, NeonCyan, Modifier.weight(1f))
-                    ReportStatCard("Cost / km", if (data.costPerKm > 0) "$currency %.3f".format(data.costPerKm) else "--", Icons.Filled.Route, WarnAmber, Modifier.weight(1f))
+                    ReportStatCard("Total Fuel Cost", if (data.totalFuelCost > 0) String.format(Locale.US, "$currency %,.3f", data.totalFuelCost) else "--", Icons.Filled.AttachMoney, NeonCyan, Modifier.weight(1f))
+                    ReportStatCard("Cost / km", if (data.costPerKm > 0) String.format(Locale.US, "$currency %.3f", data.costPerKm) else "--", Icons.Filled.Route, WarnAmber, Modifier.weight(1f))
                 }
 
                 // ── Mileage Breakdown ─────────────────────────────────────
@@ -175,11 +175,11 @@ private fun TotalOwnershipCard(data: ReportsData, currency: String) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("TOTAL OWNERSHIP COST", color = OnSurfaceSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
                 Text(
-                    if (data.totalOwnershipCost > 0) "$currency %.3f".format(data.totalOwnershipCost) else "--",
+                    if (data.totalOwnershipCost > 0) String.format(Locale.US, "$currency %,.3f", data.totalOwnershipCost) else "--",
                     color = OnSurfacePrimary, fontWeight = FontWeight.Black, fontSize = 36.sp, lineHeight = 38.sp
                 )
                 if (data.totalKmDriven > 0) {
-                    Text("$currency %.3f per km driven".format(data.costPerKm), color = OnSurfaceSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(String.format(Locale.US, "$currency %.3f per km driven", data.costPerKm), color = OnSurfaceSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
@@ -203,7 +203,7 @@ private fun CostRow(label: String, amount: Double, total: Double, color: Color, 
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("$pct%", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
-            Text(if (amount > 0) "$currency %.3f".format(amount) else "--", color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+            Text(if (amount > 0) String.format(Locale.US, "$currency %,.3f", amount) else "--", color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -243,7 +243,7 @@ private fun MileageCard(data: ReportsData) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Filled.Info, null, tint = Color(0xFF2196F3), modifier = Modifier.size(14.dp))
-                        Text("%.0f km may be tax-deductible as business mileage".format(data.workKm),
+                        Text(String.format(Locale.US, "%,.0f km may be tax-deductible as business mileage", data.workKm),
                             color = Color(0xFF2196F3), style = MaterialTheme.typography.labelSmall)
                     }
                 }
@@ -257,7 +257,7 @@ private fun MileageStatItem(label: String, km: Double, total: Double, color: Col
     val pct = if (total > 0) (km / total * 100).toInt() else 0
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(label, color = OnSurfaceSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
-        Text("%.0f".format(km), color = color, fontWeight = FontWeight.Black, fontSize = 22.sp)
+        Text(String.format(Locale.US, "%,.0f", km), color = color, fontWeight = FontWeight.Black, fontSize = 22.sp)
         Text("km · $pct%", color = OnSurfaceSecondary, fontSize = 10.sp)
     }
 }
@@ -276,7 +276,7 @@ private fun MaintenanceCategoryBreakdown(categories: List<MaintenanceCategoryTot
                         Text(item.category.displayName, color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("$pct%", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
-                            Text("$currency %.3f".format(item.total), color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                            Text(String.format(Locale.US, "$currency %,.3f", item.total), color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     LinearProgressIndicator(

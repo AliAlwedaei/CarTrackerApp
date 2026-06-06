@@ -223,7 +223,7 @@ private fun MaintenanceCard(log: MaintenanceLog, currency: String, onEdit: () ->
                 }
                 Column {
                     Text("Mileage", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
-                    Text("%.0f km".format(log.mileage), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall)
+                    Text(String.format(Locale.US, "%,d km", log.mileage.toLong()), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall)
                 }
                 Column {
                     Text("Cost", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
@@ -242,7 +242,7 @@ private fun MaintenanceCard(log: MaintenanceLog, currency: String, onEdit: () ->
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(Icons.Filled.Schedule, null, tint = NeonCyan, modifier = Modifier.size(12.dp))
-                    Text("Next service at %.0f km".format(log.nextServiceKm), color = NeonCyan,
+                    Text("Next service at ${String.format(Locale.US, "%,d", log.nextServiceKm!!.toLong())} km", color = NeonCyan,
                         style = MaterialTheme.typography.labelSmall)
                 }
             }
@@ -387,7 +387,7 @@ private fun MaintenanceSheet(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Filled.Lightbulb, null, tint = NeonCyan, modifier = Modifier.size(16.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text("Recommended: next at %,d km".format(suggestedNextKm),
+                            Text("Recommended: next at ${String.format(Locale.US, "%,d", suggestedNextKm)} km",
                                 color = NeonCyan, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                             Text(template.intervalLabel, color = NeonCyan.copy(alpha = 0.7f), fontSize = 10.sp)
                         }

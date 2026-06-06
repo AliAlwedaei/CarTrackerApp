@@ -228,7 +228,7 @@ private fun ReminderCard(
                         fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                     when (reminder.type) {
                         ReminderType.MILEAGE -> reminder.targetMileage?.let {
-                            Text("At %.0f km".format(it), color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(String.format(Locale.US, "At %,.0f km", it), color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
                         }
                         ReminderType.DATE -> reminder.targetDate?.let {
                             Text("On ${sdf.format(Date(it))}", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)

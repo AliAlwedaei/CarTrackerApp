@@ -645,7 +645,7 @@ private fun lastCheckedLabel(ui: HealthCheckUi): String {
         ui.daysSinceLast == 1L   -> "Yesterday"
         else                     -> "${ui.daysSinceLast}d ago"
     }
-    return ui.kmSinceLast?.let { "%.0f km · $daysLabel".format(it) } ?: daysLabel
+    return ui.kmSinceLast?.let { String.format(Locale.US, "%,.0f km · $daysLabel", it) } ?: daysLabel
 }
 
 private fun intervalLabel(check: HealthCheck): String {

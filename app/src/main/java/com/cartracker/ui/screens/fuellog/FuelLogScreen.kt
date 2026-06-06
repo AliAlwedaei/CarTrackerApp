@@ -218,9 +218,9 @@ private fun FuelLogCard(
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                StatCell("Odometer", "%.0f km".format(log.odometer))
+                StatCell("Odometer", String.format(Locale.US, "%,d km", log.odometer.toLong()))
                 StatCell("Liters", "%.2f L".format(log.liters))
-                StatCell("Total", "$currency %.3f".format(log.totalCost))
+                StatCell("Total", String.format(Locale.US, "$currency %,.3f", log.totalCost))
             }
             if (log.fuelEfficiency > 0 || !log.isFullTank || log.fuelType != FuelType.REGULAR) {
                 Spacer(Modifier.height(6.dp))
@@ -345,10 +345,10 @@ private fun FuelLogSheet(
                 modifier = Modifier.fillMaxWidth(),
                 isError = odometerError,
                 supportingText = if (odometerError) {
-                    { Text("Must be higher than last reading (${String.format(Locale.US, "%.0f", lastOdometer)} km)", color = ErrorRed) }
+                    { Text("Must be higher than last reading (${String.format(Locale.US, "%,d", lastOdometer!!.toLong())} km)", color = ErrorRed) }
                 } else null,
                 suffix = if (lastOdometer != null && !isEdit && !odometerError) {
-                    { Text("last: ${String.format(Locale.US, "%.0f", lastOdometer)}", color = OnSurfaceSecondary, fontSize = 11.sp) }
+                    { Text("last: ${String.format(Locale.US, "%,d", lastOdometer!!.toLong())}", color = OnSurfaceSecondary, fontSize = 11.sp) }
                 } else null,
                 colors = sheetFieldColors()
             )
@@ -428,7 +428,7 @@ private fun FuelLogSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Total Cost", color = NeonCyan, style = MaterialTheme.typography.bodyMedium)
-                    Text("$currency %.3f".format(totalCost), color = NeonCyan, fontWeight = FontWeight.Bold)
+                    Text(String.format(Locale.US, "$currency %,.3f", totalCost), color = NeonCyan, fontWeight = FontWeight.Bold)
                 }
             }
 

@@ -123,9 +123,9 @@ private fun HistoryEventRow(event: HistoryEvent) {
             icon   = Icons.Filled.LocalGasStation,
             accent = NeonCyan,
             title  = "Fill-up — %.1f L".format(event.log.liters),
-            sub    = "%.0f km".format(event.log.odometer) +
+            sub    = String.format(Locale.US, "%,.0f km", event.log.odometer) +
                 (if (event.log.fuelEfficiency > 0) " · %.1f km/L".format(event.log.fuelEfficiency) else ""),
-            amount = "BD %.3f".format(event.log.totalCost)
+            amount = String.format(Locale.US, "BD %,.3f", event.log.totalCost)
         )
         is HistoryEvent.Service -> EventDisplay(
             icon   = Icons.Filled.Build,
@@ -133,7 +133,7 @@ private fun HistoryEventRow(event: HistoryEvent) {
             title  = event.log.serviceType,
             sub    = event.log.category.displayName +
                 (if (event.log.notes.isNotBlank()) " · ${event.log.notes}" else ""),
-            amount = if (event.log.cost > 0) "BD %.3f".format(event.log.cost) else ""
+            amount = if (event.log.cost > 0) String.format(Locale.US, "BD %,.3f", event.log.cost) else ""
         )
     }
 
