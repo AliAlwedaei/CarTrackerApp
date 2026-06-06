@@ -12,6 +12,13 @@ enum class MaintenanceCategory(val displayName: String) {
     BATTERY("Battery"),
     FILTERS("Filters"),
     WIPERS("Wipers"),
+    INSURANCE("Insurance"),
+    REGISTRATION("Registration"),
+    TRANSMISSION("Transmission"),
+    AC_SERVICE("AC Service"),
+    SPARK_PLUGS("Spark Plugs"),
+    ALIGNMENT("Alignment"),
+    TIMING_BELT("Timing Belt"),
     OTHER("Other")
 }
 
@@ -33,5 +40,7 @@ data class MaintenanceLog(
     val date: Long,
     val mileage: Double,
     val cost: Double,
+    val garage: String = "",
+    val nextServiceKm: Double? = null,
     val notes: String = ""
 )

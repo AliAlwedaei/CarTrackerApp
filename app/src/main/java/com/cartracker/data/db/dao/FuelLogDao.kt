@@ -24,8 +24,14 @@ interface FuelLogDao {
     @Query("SELECT SUM(totalCost) FROM fuel_logs WHERE carId = :carId AND date >= :fromDate")
     suspend fun getMonthlyCost(carId: Long, fromDate: Long): Double?
 
-    @Query("SELECT AVG(fuelEfficiency) FROM fuel_logs WHERE carId = :carId AND fuelEfficiency > 0")
+    @Query("SELECT AVG(fuelEfficiency) FROM fuel_logs WHERE carId = :carId AND fuelEfficiency > 0 AND isFullTank = 1")
     suspend fun getAverageFuelEfficiency(carId: Long): Double?
+
+    @Query("SELECT SUM(totalCost) FROM fuel_logs WHERE carId = :carId")
+    suspend fun getTotalCostAllTime(carId: Long): Double?
+
+    @Query("SELECT costPerLiter FROM fuel_logs WHERE carId = :carId ORDER BY date DESC LIMIT 1")
+    suspend fun getLastPricePerLiter(carId: Long): Double?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFuelLog(fuelLog: FuelLog): Long

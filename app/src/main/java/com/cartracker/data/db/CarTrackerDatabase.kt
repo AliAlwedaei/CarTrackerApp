@@ -11,8 +11,8 @@ import com.cartracker.data.db.dao.*
 import com.cartracker.data.db.entities.*
 
 @Database(
-    entities = [Car::class, FuelLog::class, MaintenanceLog::class, Trip::class, Reminder::class, HealthCheck::class],
-    version = 4,
+    entities = [Car::class, FuelLog::class, MaintenanceLog::class, Trip::class, Reminder::class, HealthCheck::class, Expense::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -23,6 +23,7 @@ abstract class CarTrackerDatabase : RoomDatabase() {
     abstract fun tripDao(): TripDao
     abstract fun reminderDao(): ReminderDao
     abstract fun healthCheckDao(): HealthCheckDao
+    abstract fun expenseDao(): ExpenseDao
 
     companion object {
         @Volatile private var INSTANCE: CarTrackerDatabase? = null
@@ -45,6 +46,14 @@ abstract class CarTrackerDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `health_checks` ADD COLUMN `intervalKm` INTEGER")
+                db.execSQL("ALTER TABLE `health_checks` ADD COLUMN `lastCheckedAtOdometer` REAL")
+                db.execSQL("ALTER TABLE `health_checks` ADD COLUMN `notes` TEXT")
+            }
+        }
+
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `reminders` ADD COLUMN `recurrenceKm` INTEGER")
@@ -52,11 +61,29 @@ abstract class CarTrackerDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_2_3 = object : Migration(2, 3) {
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `health_checks` ADD COLUMN `intervalKm` INTEGER")
-                db.execSQL("ALTER TABLE `health_checks` ADD COLUMN `lastCheckedAtOdometer` REAL")
-                db.execSQL("ALTER TABLE `health_checks` ADD COLUMN `notes` TEXT")
+                // FuelLog: partial fill-up flag
+                db.execSQL("ALTER TABLE `fuel_logs` ADD COLUMN `isFullTank` INTEGER NOT NULL DEFAULT 1")
+                // MaintenanceLog: garage and next service
+                db.execSQL("ALTER TABLE `maintenance_logs` ADD COLUMN `garage` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `maintenance_logs` ADD COLUMN `nextServiceKm` REAL")
+                // New expenses table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `expenses` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `carId` INTEGER NOT NULL,
+                        `category` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `date` INTEGER NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `isRecurring` INTEGER NOT NULL DEFAULT 0,
+                        `recurrenceDays` INTEGER,
+                        `notes` TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(`carId`) REFERENCES `cars`(`id`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_carId` ON `expenses` (`carId`)")
             }
         }
 
@@ -67,7 +94,7 @@ abstract class CarTrackerDatabase : RoomDatabase() {
                     CarTrackerDatabase::class.java,
                     "car_tracker_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }

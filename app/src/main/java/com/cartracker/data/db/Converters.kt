@@ -1,6 +1,7 @@
 package com.cartracker.data.db
 
 import androidx.room.TypeConverter
+import com.cartracker.data.db.entities.ExpenseCategory
 import com.cartracker.data.db.entities.HealthCheckType
 import com.cartracker.data.db.entities.MaintenanceCategory
 import com.cartracker.data.db.entities.ReminderType
@@ -31,4 +32,10 @@ class Converters {
 
     @TypeConverter
     fun toHealthCheckType(value: String): HealthCheckType = HealthCheckType.valueOf(value)
+
+    @TypeConverter
+    fun fromExpenseCategory(value: ExpenseCategory): String = value.name
+
+    @TypeConverter
+    fun toExpenseCategory(value: String): ExpenseCategory = ExpenseCategory.valueOf(value)
 }

@@ -8,18 +8,23 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cartracker.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.cartracker.ui.screens.cars.CarsScreen
 import com.cartracker.ui.screens.dashboard.DashboardScreen
+import com.cartracker.ui.screens.expenses.ExpenseScreen
 import com.cartracker.ui.screens.fuellog.FuelLogScreen
 import com.cartracker.ui.screens.history.HistoryScreen
 import com.cartracker.ui.screens.maintenance.MaintenanceScreen
 import com.cartracker.ui.screens.reminders.RemindersScreen
+import com.cartracker.ui.screens.reports.ReportsScreen
+import com.cartracker.ui.screens.settings.SettingsScreen
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.CarsViewModel
 import com.cartracker.ui.viewmodel.CarsViewModelFactory
@@ -28,9 +33,12 @@ sealed class Screen(val route: String, val label: String) {
     object Dashboard   : Screen("dashboard",   "Home")
     object FuelLog     : Screen("fuel_log",    "Fuel")
     object Maintenance : Screen("maintenance", "Service")
-    object History     : Screen("history",     "History")
+    object Expenses    : Screen("expenses",    "Expenses")
     object Reminders   : Screen("reminders",   "Alerts")
     object Cars        : Screen("cars",        "Cars")
+    object Settings    : Screen("settings",    "Settings")
+    object Reports     : Screen("reports",     "Reports")
+    object History     : Screen("history",     "History")
 }
 
 @Composable
@@ -46,12 +54,12 @@ fun CarTrackerNavHost() {
     val navController = rememberNavController()
 
     val navItems = listOf(
-        Triple(Screen.Dashboard,   Icons.Filled.Home,             "Home"),
-        Triple(Screen.FuelLog,     Icons.Filled.LocalGasStation,  "Fuel"),
-        Triple(Screen.Maintenance, Icons.Filled.Build,            "Service"),
-        Triple(Screen.History,     Icons.Filled.History,          "History"),
-        Triple(Screen.Reminders,   Icons.Filled.Notifications,    "Alerts"),
-        Triple(Screen.Cars,        Icons.Filled.Garage,           "Cars"),
+        Triple(Screen.Dashboard,   Icons.Filled.Home,             R.string.nav_home),
+        Triple(Screen.FuelLog,     Icons.Filled.LocalGasStation,  R.string.nav_fuel),
+        Triple(Screen.Maintenance, Icons.Filled.Build,            R.string.nav_service),
+        Triple(Screen.Expenses,    Icons.Filled.Receipt,          R.string.nav_expenses),
+        Triple(Screen.Reminders,   Icons.Filled.Notifications,    R.string.nav_alerts),
+        Triple(Screen.Cars,        Icons.Filled.Garage,           R.string.nav_cars),
     )
 
     Scaffold(
@@ -62,8 +70,9 @@ fun CarTrackerNavHost() {
                 NavigationBar(containerColor = SurfaceContainer, tonalElevation = 0.dp) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentDestination = navBackStackEntry?.destination
-                    navItems.forEach { (screen, icon, label) ->
+                    navItems.forEach { (screen, icon, labelRes) ->
                         val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        val label = stringResource(labelRes)
                         NavigationBarItem(
                             icon = { Icon(icon, contentDescription = label) },
                             label = {
@@ -106,6 +115,14 @@ fun CarTrackerNavHost() {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true; restoreState = true
                         }
+                    },
+                    onSettings = { navController.navigate(Screen.Settings.route) },
+                    onViewReports = { navController.navigate(Screen.Reports.route) },
+                    onViewAlerts = {
+                        navController.navigate(Screen.Reminders.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true; restoreState = true
+                        }
                     }
                 )
             }
@@ -115,6 +132,9 @@ fun CarTrackerNavHost() {
             composable(Screen.Maintenance.route) {
                 MaintenanceScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
+            composable(Screen.Expenses.route) {
+                ExpenseScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
+            }
             composable(Screen.History.route) {
                 HistoryScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
@@ -123,6 +143,19 @@ fun CarTrackerNavHost() {
             }
             composable(Screen.Cars.route) {
                 CarsScreen(carsViewModel = carsViewModel)
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onViewReports = { navController.navigate(Screen.Reports.route) }
+                )
+            }
+            composable(Screen.Reports.route) {
+                ReportsScreen(
+                    carId = activeCarId,
+                    cars = cars,
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
     }

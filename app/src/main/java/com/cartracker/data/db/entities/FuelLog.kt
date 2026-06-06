@@ -24,5 +24,6 @@ data class FuelLog(
     val costPerLiter: Double,
     val totalCost: Double,
     val fuelEfficiency: Double = 0.0,
+    val isFullTank: Boolean = true,
     val notes: String = ""
 )

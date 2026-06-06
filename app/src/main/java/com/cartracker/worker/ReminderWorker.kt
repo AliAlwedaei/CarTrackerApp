@@ -11,6 +11,7 @@ import com.cartracker.data.db.entities.ReminderType
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -36,7 +37,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             if (shouldNotify) {
                 val text = when (reminder.type) {
                     ReminderType.DATE -> reminder.targetDate?.let { "Due ${sdf.format(Date(it))}" } ?: reminder.title
-                    ReminderType.MILEAGE -> reminder.targetMileage?.let { "At %.0f km".format(it) } ?: reminder.title
+                    ReminderType.MILEAGE -> reminder.targetMileage?.let { String.format(Locale.US, "At %.0f km", it) } ?: reminder.title
                 }
                 notify(notificationManager, id = reminder.id.toInt(),
                     channelId = CHANNEL_REMINDERS, title = reminder.title, text = text)

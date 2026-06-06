@@ -33,13 +33,32 @@ import com.cartracker.ui.screens.fuellog.sheetFieldColors
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.MaintenanceViewModel
 import com.cartracker.ui.viewmodel.MaintenanceViewModelFactory
+import com.cartracker.util.CurrencyPrefs
 import java.text.SimpleDateFormat
 import java.util.*
+
+private val categoryIcons = mapOf(
+    MaintenanceCategory.OIL_CHANGE   to Icons.Filled.WaterDrop,
+    MaintenanceCategory.TIRES        to Icons.Filled.RadioButtonUnchecked,
+    MaintenanceCategory.BRAKES       to Icons.Filled.Report,
+    MaintenanceCategory.BATTERY      to Icons.Filled.BatteryFull,
+    MaintenanceCategory.FILTERS      to Icons.Filled.FilterList,
+    MaintenanceCategory.WIPERS       to Icons.Filled.Opacity,
+    MaintenanceCategory.INSURANCE    to Icons.Filled.Security,
+    MaintenanceCategory.REGISTRATION to Icons.Filled.Description,
+    MaintenanceCategory.TRANSMISSION to Icons.Filled.Settings,
+    MaintenanceCategory.AC_SERVICE   to Icons.Filled.AcUnit,
+    MaintenanceCategory.SPARK_PLUGS  to Icons.Filled.ElectricBolt,
+    MaintenanceCategory.ALIGNMENT    to Icons.Filled.Tune,
+    MaintenanceCategory.TIMING_BELT  to Icons.Filled.Loop,
+    MaintenanceCategory.OTHER        to Icons.Filled.Build
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
+    val currency = remember { CurrencyPrefs.getSymbol(context) }
     val viewModel: MaintenanceViewModel = viewModel(
         factory = MaintenanceViewModelFactory(context.applicationContext as android.app.Application)
     )
@@ -97,16 +116,24 @@ fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected
                 if (logs.isEmpty()) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
                                 Icon(Icons.Filled.Build, null, Modifier.size(40.dp), tint = OnSurfaceSecondary)
                                 Text("No service records yet", color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold)
-                                Text("Tap + to log a service", color = OnSurfaceSecondary, fontSize = 13.sp)
+                                Text("Log every service to track your maintenance history", color = OnSurfaceSecondary, fontSize = 13.sp)
+                                Button(
+                                    onClick = { showSheet = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) { Text("Log First Service", fontWeight = FontWeight.SemiBold) }
                             }
                         }
                     }
                 }
                 items(logs, key = { it.id }) { log ->
-                    MaintenanceCard(log = log,
+                    MaintenanceCard(log = log, currency = currency,
                         onEdit = { editingLog = log; showSheet = true },
                         onDelete = { deleteTarget = log })
                 }
@@ -117,10 +144,11 @@ fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected
     if (showSheet && carId != null) {
         MaintenanceSheet(
             existingLog = editingLog,
+            currency = currency,
             onDismiss = { showSheet = false; editingLog = null },
-            onSave = { cat, type, date, mileage, cost, notes ->
-                if (editingLog != null) viewModel.updateLog(editingLog!!, cat, type, date, mileage, cost, notes)
-                else viewModel.addMaintenanceLog(carId, cat, type, date, mileage, cost, notes)
+            onSave = { cat, type, date, mileage, cost, garage, nextKm, notes ->
+                if (editingLog != null) viewModel.updateLog(editingLog!!, cat, type, date, mileage, cost, garage, nextKm, notes)
+                else viewModel.addMaintenanceLog(carId, cat, type, date, mileage, cost, garage, nextKm, notes)
                 showSheet = false; editingLog = null
             }
         )
@@ -131,7 +159,7 @@ fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected
             onDismissRequest = { deleteTarget = null },
             containerColor = SurfaceContainerHigh,
             title = { Text("Delete record?", color = OnSurfacePrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("This cannot be undone.", color = OnSurfaceSecondary) },
+            text = { Text("This will permanently remove this service record.", color = OnSurfaceSecondary) },
             confirmButton = {
                 TextButton(onClick = { viewModel.deleteLog(target); deleteTarget = null }) {
                     Text("Delete", color = ErrorRed, fontWeight = FontWeight.SemiBold)
@@ -148,16 +176,8 @@ fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-private val categoryIcons = mapOf(
-    MaintenanceCategory.OIL_CHANGE to Icons.Filled.WaterDrop,
-    MaintenanceCategory.TIRES to Icons.Filled.RadioButtonUnchecked,
-    MaintenanceCategory.BRAKES to Icons.Filled.Report,
-    MaintenanceCategory.BATTERY to Icons.Filled.BatteryFull,
-    MaintenanceCategory.OTHER to Icons.Filled.Build
-)
-
 @Composable
-private fun MaintenanceCard(log: MaintenanceLog, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun MaintenanceCard(log: MaintenanceLog, currency: String, onEdit: () -> Unit, onDelete: () -> Unit) {
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
     val icon = categoryIcons[log.category] ?: Icons.Filled.Build
     Box(
@@ -197,7 +217,23 @@ private fun MaintenanceCard(log: MaintenanceLog, onEdit: () -> Unit, onDelete: (
                 }
                 Column {
                     Text("Cost", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
-                    Text("BD %.3f".format(log.cost), color = OnSurfacePrimary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text("$currency %.3f".format(log.cost), color = OnSurfacePrimary,
+                        style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (log.garage.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Filled.LocationOn, null, tint = OnSurfaceSecondary, modifier = Modifier.size(12.dp))
+                    Text(log.garage, color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            if (log.nextServiceKm != null) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Filled.Schedule, null, tint = NeonCyan, modifier = Modifier.size(12.dp))
+                    Text("Next service at %.0f km".format(log.nextServiceKm), color = NeonCyan,
+                        style = MaterialTheme.typography.labelSmall)
                 }
             }
             if (log.notes.isNotBlank()) {
@@ -214,8 +250,9 @@ private fun MaintenanceCard(log: MaintenanceLog, onEdit: () -> Unit, onDelete: (
 @Composable
 private fun MaintenanceSheet(
     existingLog: MaintenanceLog?,
+    currency: String,
     onDismiss: () -> Unit,
-    onSave: (MaintenanceCategory, String, Long, Double, Double, String) -> Unit
+    onSave: (MaintenanceCategory, String, Long, Double, Double, String, Double?, String) -> Unit
 ) {
     val isEdit = existingLog != null
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
@@ -224,11 +261,12 @@ private fun MaintenanceSheet(
     var serviceType by remember { mutableStateOf(existingLog?.serviceType ?: "") }
     var dateMs by remember { mutableStateOf(existingLog?.date ?: System.currentTimeMillis()) }
     var mileage by remember { mutableStateOf(existingLog?.mileage?.let { String.format(Locale.US, "%.0f", it) } ?: "") }
-    var cost by remember { mutableStateOf(existingLog?.cost?.let { String.format(Locale.US, "%.2f", it) } ?: "") }
+    var cost by remember { mutableStateOf(existingLog?.cost?.let { String.format(Locale.US, "%.3f", it) } ?: "") }
+    var garage by remember { mutableStateOf(existingLog?.garage ?: "") }
+    var nextServiceKm by remember { mutableStateOf(existingLog?.nextServiceKm?.let { String.format(Locale.US, "%.0f", it) } ?: "") }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // Auto-fill service type from category when creating new
     LaunchedEffect(selectedCategory) {
         if (!isEdit && serviceType.isBlank()) {
             serviceType = selectedCategory.displayName
@@ -254,7 +292,7 @@ private fun MaintenanceSheet(
 
             DatePickerField(dateMs = dateMs, sdf = sdf) { showDatePicker = true }
 
-            // Category chips
+            // Category chips (3 columns)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Category", color = OnSurfaceSecondary, fontSize = 11.sp)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -267,16 +305,17 @@ private fun MaintenanceSheet(
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(if (selected) NeonCyanGlow else SurfaceContainerHigh)
                                         .border(1.dp, if (selected) NeonCyanBorder else GlassBorder, RoundedCornerShape(8.dp))
-                                        .clickable { selectedCategory = cat }
+                                        .clickable { selectedCategory = cat; if (!isEdit) serviceType = cat.displayName }
                                         .padding(vertical = 8.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(cat.displayName, color = if (selected) NeonCyan else OnSurfaceSecondary,
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                        maxLines = 1
+                                    )
                                 }
                             }
-                            // Fill empty slots
                             repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
@@ -292,10 +331,22 @@ private fun MaintenanceSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
                 OutlinedTextField(value = cost, onValueChange = { cost = it },
-                    label = { Text("Cost (BD)") },
+                    label = { Text("Cost ($currency)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
             }
+
+            OutlinedTextField(value = garage, onValueChange = { garage = it },
+                label = { Text("Garage / Workshop (optional)") },
+                leadingIcon = { Icon(Icons.Filled.LocationOn, null, tint = OnSurfaceSecondary, modifier = Modifier.size(18.dp)) },
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
+
+            OutlinedTextField(value = nextServiceKm, onValueChange = { nextServiceKm = it },
+                label = { Text("Next service at (km) — optional") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                supportingText = { Text("Auto-creates a mileage reminder", color = OnSurfaceSecondary, fontSize = 11.sp) },
+                leadingIcon = { Icon(Icons.Filled.Schedule, null, tint = OnSurfaceSecondary, modifier = Modifier.size(18.dp)) },
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
 
             OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes (optional)") },
                 modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
@@ -305,7 +356,8 @@ private fun MaintenanceSheet(
                     if (serviceType.isBlank()) return@Button
                     val mi = mileage.toDoubleOrNull() ?: return@Button
                     val co = cost.toDoubleOrNull() ?: return@Button
-                    onSave(selectedCategory, serviceType, dateMs, mi, co, notes)
+                    val nextKm = nextServiceKm.toDoubleOrNull()
+                    onSave(selectedCategory, serviceType, dateMs, mi, co, garage, nextKm, notes)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),

@@ -30,6 +30,7 @@ import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.FuelLogViewModel
 import com.cartracker.ui.viewmodel.FuelLogViewModelFactory
+import com.cartracker.util.CurrencyPrefs
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,11 +38,18 @@ import java.util.*
 @Composable
 fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
+    val currency = remember { CurrencyPrefs.getSymbol(context) }
     val viewModel: FuelLogViewModel = viewModel(
         factory = FuelLogViewModelFactory(context.applicationContext as android.app.Application)
     )
     val fuelLogs by viewModel.fuelLogs.observeAsState(emptyList())
     val lastOdometer by viewModel.lastOdometer.observeAsState(null)
+    val lastPricePerLiter by viewModel.lastPricePerLiter.observeAsState(null)
+
+    val avgEfficiency = remember(fuelLogs) {
+        fuelLogs.filter { it.fuelEfficiency > 0 && it.isFullTank }.map { it.fuelEfficiency }
+            .average().takeIf { it.isFinite() } ?: 0.0
+    }
 
     val selectedCar = cars.firstOrNull { it.id == carId }
     var editingLog by remember { mutableStateOf<FuelLog?>(null) }
@@ -96,18 +104,30 @@ fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (L
                 if (fuelLogs.isEmpty()) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
                                 Icon(Icons.Filled.LocalGasStation, null, Modifier.size(40.dp), tint = OnSurfaceSecondary)
                                 Text("No fuel logs yet", color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold)
-                                Text("Tap + to log your first fill-up", color = OnSurfaceSecondary, fontSize = 13.sp)
+                                Text("Track every fill-up to see fuel economy trends", color = OnSurfaceSecondary, fontSize = 13.sp)
+                                Button(
+                                    onClick = { showSheet = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) { Text("Log First Fill-up", fontWeight = FontWeight.SemiBold) }
                             }
                         }
                     }
                 }
                 items(fuelLogs, key = { it.id }) { log ->
-                    FuelLogCard(log = log,
+                    FuelLogCard(
+                        log = log,
+                        avgEfficiency = avgEfficiency,
+                        currency = currency,
                         onEdit = { editingLog = log; showSheet = true },
-                        onDelete = { deleteTarget = log })
+                        onDelete = { deleteTarget = log }
+                    )
                 }
             }
         }
@@ -117,10 +137,12 @@ fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (L
         FuelLogSheet(
             existingLog = editingLog,
             lastOdometer = if (editingLog == null) lastOdometer else null,
+            lastPricePerLiter = if (editingLog == null) lastPricePerLiter else null,
+            currency = currency,
             onDismiss = { showSheet = false; editingLog = null },
-            onSave = { date, odo, liters, cpl, notes ->
-                if (editingLog != null) viewModel.updateFuelLog(editingLog!!, date, odo, liters, cpl, notes)
-                else viewModel.addFuelLog(carId, date, odo, liters, cpl, notes)
+            onSave = { date, odo, liters, cpl, isFullTank, notes ->
+                if (editingLog != null) viewModel.updateFuelLog(editingLog!!, date, odo, liters, cpl, isFullTank, notes)
+                else viewModel.addFuelLog(carId, date, odo, liters, cpl, isFullTank, notes)
                 showSheet = false; editingLog = null
             }
         )
@@ -131,7 +153,7 @@ fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (L
             onDismissRequest = { deleteTarget = null },
             containerColor = SurfaceContainerHigh,
             title = { Text("Delete entry?", color = OnSurfacePrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("This cannot be undone.", color = OnSurfaceSecondary) },
+            text = { Text("This will permanently remove this fill-up record.", color = OnSurfaceSecondary) },
             confirmButton = {
                 TextButton(onClick = { viewModel.deleteFuelLog(target); deleteTarget = null }) {
                     Text("Delete", color = ErrorRed, fontWeight = FontWeight.SemiBold)
@@ -151,8 +173,21 @@ fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (L
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun FuelLogCard(log: FuelLog, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun FuelLogCard(
+    log: FuelLog,
+    avgEfficiency: Double,
+    currency: String,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    val efficiencyTrend = when {
+        log.fuelEfficiency <= 0 || avgEfficiency <= 0 -> null
+        log.fuelEfficiency >= avgEfficiency * 1.03 -> true  // 3%+ above avg = good
+        log.fuelEfficiency <= avgEfficiency * 0.97 -> false // 3%+ below avg = bad
+        else -> null
+    }
+
     Box(
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
@@ -175,13 +210,45 @@ private fun FuelLogCard(log: FuelLog, onEdit: () -> Unit, onDelete: () -> Unit) 
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 StatCell("Odometer", "%.0f km".format(log.odometer))
                 StatCell("Liters", "%.2f L".format(log.liters))
-                StatCell("Total", "BD %.3f".format(log.totalCost))
+                StatCell("Total", "$currency %.3f".format(log.totalCost))
             }
-            if (log.fuelEfficiency > 0) {
+            if (log.fuelEfficiency > 0 || !log.isFullTank) {
                 Spacer(Modifier.height(6.dp))
-                Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(NeonCyanGlow).padding(horizontal = 8.dp, vertical = 3.dp)) {
-                    Text("%.1f km/L".format(log.fuelEfficiency), color = NeonCyan,
-                        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (!log.isFullTank) {
+                        Box(
+                            modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                                .background(SurfaceContainerHighest)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text("Partial", color = OnSurfaceSecondary,
+                                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                    if (log.fuelEfficiency > 0) {
+                        Box(
+                            modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                                .background(NeonCyanGlow)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(
+                                    "%.1f km/L".format(log.fuelEfficiency),
+                                    color = NeonCyan,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                efficiencyTrend?.let { isGood ->
+                                    Icon(
+                                        if (isGood) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                                        null,
+                                        tint = if (isGood) SuccessGreen else ErrorRed,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
             if (log.notes.isNotBlank()) {
@@ -207,8 +274,10 @@ private fun StatCell(label: String, value: String) {
 private fun FuelLogSheet(
     existingLog: FuelLog?,
     lastOdometer: Double?,
+    lastPricePerLiter: Double?,
+    currency: String,
     onDismiss: () -> Unit,
-    onSave: (Long, Double, Double, Double, String) -> Unit
+    onSave: (Long, Double, Double, Double, Boolean, String) -> Unit
 ) {
     val isEdit = existingLog != null
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
@@ -221,7 +290,13 @@ private fun FuelLogSheet(
         )
     }
     var liters by remember { mutableStateOf(existingLog?.liters?.let { String.format(Locale.US, "%.2f", it) } ?: "") }
-    var costPerLiter by remember { mutableStateOf(existingLog?.costPerLiter?.let { String.format(Locale.US, "%.3f", it) } ?: "") }
+    var costPerLiter by remember {
+        mutableStateOf(
+            existingLog?.costPerLiter?.let { String.format(Locale.US, "%.3f", it) }
+                ?: lastPricePerLiter?.let { String.format(Locale.US, "%.3f", it) } ?: ""
+        )
+    }
+    var isFullTank by remember { mutableStateOf(existingLog?.isFullTank ?: true) }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
     var showDatePicker by remember { mutableStateOf(false) }
     var odometerError by remember { mutableStateOf(false) }
@@ -253,7 +328,9 @@ private fun FuelLogSheet(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
                 isError = odometerError,
-                supportingText = if (odometerError) { { Text("Must be higher than last reading (${String.format(Locale.US, "%.0f", lastOdometer)} km)", color = ErrorRed) } } else null,
+                supportingText = if (odometerError) {
+                    { Text("Must be higher than last reading (${String.format(Locale.US, "%.0f", lastOdometer)} km)", color = ErrorRed) }
+                } else null,
                 suffix = if (lastOdometer != null && !isEdit && !odometerError) {
                     { Text("last: ${String.format(Locale.US, "%.0f", lastOdometer)}", color = OnSurfaceSecondary, fontSize = 11.sp) }
                 } else null,
@@ -264,9 +341,38 @@ private fun FuelLogSheet(
                 OutlinedTextField(value = liters, onValueChange = { liters = it }, label = { Text("Liters") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
-                OutlinedTextField(value = costPerLiter, onValueChange = { costPerLiter = it }, label = { Text("Price / L") },
+                OutlinedTextField(
+                    value = costPerLiter, onValueChange = { costPerLiter = it },
+                    label = { Text("Price / L ($currency)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors()
+                )
+            }
+
+            // Full tank toggle
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceContainerHigh)
+                    .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
+                    .clickable { isFullTank = !isFullTank }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Full Tank Fill-up", color = OnSurfacePrimary, fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        if (isFullTank) "Fuel efficiency will be calculated" else "Efficiency skipped for partial fill-up",
+                        color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                Switch(
+                    checked = isFullTank,
+                    onCheckedChange = { isFullTank = it },
+                    colors = SwitchDefaults.colors(checkedThumbColor = TrueBlack, checkedTrackColor = NeonCyan)
+                )
             }
 
             if (totalCost > 0) {
@@ -277,7 +383,7 @@ private fun FuelLogSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Total Cost", color = NeonCyan, style = MaterialTheme.typography.bodyMedium)
-                    Text("BD %.3f".format(totalCost), color = NeonCyan, fontWeight = FontWeight.Bold)
+                    Text("$currency %.3f".format(totalCost), color = NeonCyan, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -292,7 +398,7 @@ private fun FuelLogSheet(
                     if (!isEdit && lastOdometer != null && odo < lastOdometer) {
                         odometerError = true; return@Button
                     }
-                    onSave(dateMs, odo, lit, cpl, notes)
+                    onSave(dateMs, odo, lit, cpl, isFullTank, notes)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
@@ -315,7 +421,7 @@ private fun FuelLogSheet(
     }
 }
 
-// ─── Shared UI helpers (used by other screens) ────────────────────────────────
+// ─── Shared UI helpers ────────────────────────────────────────────────────────
 
 @Composable
 internal fun DatePickerField(dateMs: Long, sdf: SimpleDateFormat, onTap: () -> Unit) {

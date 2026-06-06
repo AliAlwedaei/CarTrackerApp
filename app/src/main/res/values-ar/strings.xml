@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">تتبع السيارة</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_fuel">الوقود</string>
+    <string name="nav_service">الصيانة</string>
+    <string name="nav_history">السجل</string>
+    <string name="nav_alerts">التنبيهات</string>
+    <string name="nav_cars">السيارات</string>
+    <string name="nav_settings">الإعدادات</string>
+
+    <!-- Common actions -->
+    <string name="action_save">حفظ</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_delete">حذف</string>
+    <string name="action_edit">تعديل</string>
+    <string name="action_done">تم</string>
+    <string name="action_add">إضافة</string>
+    <string name="action_update">تحديث</string>
+    <string name="action_ok">موافق</string>
+    <string name="action_switch_car">تبديل السيارة</string>
+
+    <!-- Common states -->
+    <string name="state_no_data">لا توجد بيانات</string>
+    <string name="state_loading">جاري التحميل…</string>
+    <string name="state_select_car">اختر سيارة</string>
+    <string name="state_add_car">إضافة سيارة</string>
+    <string name="state_select_car_short">اختر سيارة</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_my_garage">مرآبي</string>
+    <string name="dashboard_odometer">عداد المسافة</string>
+    <string name="dashboard_unit_km">كم</string>
+    <string name="dashboard_fuel_level">مستوى الوقود</string>
+    <string name="dashboard_live">مباشر</string>
+    <string name="dashboard_economy">الاقتصاد</string>
+    <string name="dashboard_km_l_avg">كم / ل متوسط</string>
+    <string name="dashboard_oil_change">تغيير الزيت</string>
+    <string name="dashboard_days_left">أيام متبقية</string>
+    <string name="dashboard_fuel_price">سعر الوقود</string>
+    <string name="dashboard_stable">مستقر</string>
+    <string name="dashboard_performance">الأداء</string>
+    <string name="dashboard_avg_range">متوسط المسافة</string>
+    <string name="dashboard_per_tank">لكل خزان</string>
+    <string name="dashboard_fillup">تعبئة</string>
+    <string name="dashboard_avg_interval">متوسط الفترة</string>
+    <string name="dashboard_cost_km">التكلفة / كم</string>
+    <string name="dashboard_fuel_cost">تكلفة الوقود</string>
+    <string name="dashboard_monthly_spend">الإنفاق الشهري</string>
+    <string name="dashboard_total">إجمالي</string>
+    <string name="dashboard_add_fuel">+ وقود</string>
+    <string name="dashboard_add_service">+ صيانة</string>
+    <string name="dashboard_no_trend">لا توجد بيانات</string>
+
+    <!-- Fuel Log -->
+    <string name="screen_fuel_log">سجل الوقود</string>
+    <string name="fuel_add">تسجيل تعبئة</string>
+    <string name="fuel_edit">تعديل التعبئة</string>
+    <string name="fuel_odometer">عداد المسافة (كم)</string>
+    <string name="fuel_liters">لتر</string>
+    <string name="fuel_price_per_l">السعر / لتر</string>
+    <string name="fuel_total_cost">التكلفة الإجمالية</string>
+    <string name="fuel_notes">ملاحظات (اختياري)</string>
+    <string name="fuel_empty">لم يتم تسجيل أي تعبئة.\nاضغط + للإضافة.</string>
+
+    <!-- Service -->
+    <string name="screen_service">الصيانة</string>
+    <string name="service_add">إضافة صيانة</string>
+    <string name="service_edit">تعديل الصيانة</string>
+    <string name="service_cost">التكلفة (BD)</string>
+    <string name="service_mileage">عداد المسافة (كم)</string>
+    <string name="service_empty">لم يتم تسجيل أي صيانة.</string>
+
+    <!-- History -->
+    <string name="screen_history">السجل</string>
+    <string name="history_empty_title">لا يوجد سجل</string>
+    <string name="history_empty_sub">سجلات الوقود والصيانة ستظهر هنا</string>
+
+    <!-- Reminders -->
+    <string name="screen_reminders">التذكيرات</string>
+    <string name="tab_reminders">التذكيرات</string>
+    <string name="tab_health_checks">فحوصات السيارة</string>
+    <string name="reminder_add">إضافة تذكير</string>
+    <string name="reminder_edit">تعديل التذكير</string>
+    <string name="reminder_upcoming">القادم</string>
+    <string name="reminder_completed">المكتمل</string>
+    <string name="reminder_none_title">لا توجد تذكيرات</string>
+    <string name="reminder_none_sub">اضغط + لإضافة تذكير</string>
+    <string name="reminder_what">ماذا يجب فعله؟</string>
+    <string name="reminder_remind_by">تذكيرني بواسطة</string>
+    <string name="reminder_target_mileage">المسافة المستهدفة (كم)</string>
+    <string name="reminder_repeat_km">تكرار كل (كم)</string>
+    <string name="reminder_repeat_days">تكرار كل (أيام)</string>
+    <string name="reminder_one_time">اختياري — اتركه فارغاً للمرة الواحدة</string>
+
+    <!-- Health Checks -->
+    <string name="health_never_done">لم يتم أبداً</string>
+    <string name="health_never_checked">لم يفحص</string>
+    <string name="health_today">اليوم</string>
+    <string name="health_yesterday">أمس</string>
+    <string name="health_attention">تنبيه</string>
+    <string name="health_due_soon">قريباً</string>
+    <string name="health_good">جيد</string>
+    <string name="health_mark_done">تم اليوم</string>
+    <string name="health_log_oil">تسجيل تغيير الزيت</string>
+    <string name="health_overdue">متأخر</string>
+    <string name="health_due_today">مستحق اليوم</string>
+    <string name="health_due_in">مستحق في</string>
+    <string name="health_every">كل</string>
+    <string name="health_next_at">القادم عند</string>
+    <string name="health_km_since">كم منذ</string>
+    <string name="health_km_ago">كم مضت</string>
+    <string name="health_loading">جاري تحميل الفحوصات…</string>
+    <string name="health_select_car">اختر سيارة لعرض الفحوصات</string>
+    <string name="health_save_to_log">يُحفظ تلقائياً في سجل الصيانة</string>
+    <string name="health_edit_interval">تعديل الفترة</string>
+    <string name="health_interval_days">كل (أيام)</string>
+    <string name="health_interval_km">كل (كم)</string>
+    <string name="health_interval_hint">أيهما يحل أولاً سيُنبهك.</string>
+    <string name="health_save_interval">حفظ الفترة</string>
+
+    <!-- Cars -->
+    <string name="screen_cars">السيارات</string>
+    <string name="car_active">نشط</string>
+    <string name="car_add">إضافة سيارة</string>
+    <string name="car_edit">تعديل السيارة</string>
+    <string name="car_delete_title">حذف %s؟</string>
+    <string name="car_delete_body">ستُحذف جميع سجلات الوقود والصيانة لهذه السيارة نهائياً.</string>
+    <string name="car_name">اسم السيارة</string>
+    <string name="car_make">الشركة</string>
+    <string name="car_model">الموديل</string>
+    <string name="car_year">السنة</string>
+    <string name="car_plate">رقم اللوحة</string>
+    <string name="car_odometer">عداد المسافة الحالي (كم)</string>
+    <string name="car_none">لا توجد سيارات</string>
+    <string name="car_tap_add">اضغط + لإضافة سيارتك الأولى</string>
+
+    <!-- Settings -->
+    <string name="screen_settings">الإعدادات</string>
+    <string name="settings_language">اللغة</string>
+    <string name="settings_lang_en">English</string>
+    <string name="settings_lang_ar">العربية</string>
+    <string name="settings_numbers_note">بيانات السيارة (عداد المسافة، التكاليف) تستخدم الأرقام الغربية دائماً بغض النظر عن اللغة.</string>
+</resources>

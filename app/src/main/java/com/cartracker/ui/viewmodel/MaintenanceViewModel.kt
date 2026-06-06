@@ -20,22 +20,44 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
 
     fun addMaintenanceLog(
         carId: Long, category: MaintenanceCategory, serviceType: String,
-        date: Long, mileage: Double, cost: Double, notes: String
+        date: Long, mileage: Double, cost: Double, garage: String,
+        nextServiceKm: Double?, notes: String
     ) {
         viewModelScope.launch {
             repository.insertMaintenanceLog(
-                MaintenanceLog(carId = carId, category = category, serviceType = serviceType,
-                    date = date, mileage = mileage, cost = cost, notes = notes)
+                MaintenanceLog(
+                    carId = carId, category = category, serviceType = serviceType,
+                    date = date, mileage = mileage, cost = cost,
+                    garage = garage, nextServiceKm = nextServiceKm, notes = notes
+                )
             )
+            // Auto-create reminder for next service if specified
+            nextServiceKm?.let { km ->
+                repository.insertReminder(
+                    com.cartracker.data.db.entities.Reminder(
+                        carId = carId,
+                        title = "Next $serviceType",
+                        type = com.cartracker.data.db.entities.ReminderType.MILEAGE,
+                        targetMileage = km,
+                        notes = "Auto-created from service log"
+                    )
+                )
+            }
         }
     }
 
-    fun updateLog(existing: MaintenanceLog, category: MaintenanceCategory, serviceType: String,
-                  date: Long, mileage: Double, cost: Double, notes: String) {
+    fun updateLog(
+        existing: MaintenanceLog, category: MaintenanceCategory, serviceType: String,
+        date: Long, mileage: Double, cost: Double, garage: String,
+        nextServiceKm: Double?, notes: String
+    ) {
         viewModelScope.launch {
             repository.updateMaintenanceLog(
-                existing.copy(category = category, serviceType = serviceType,
-                    date = date, mileage = mileage, cost = cost, notes = notes)
+                existing.copy(
+                    category = category, serviceType = serviceType,
+                    date = date, mileage = mileage, cost = cost,
+                    garage = garage, nextServiceKm = nextServiceKm, notes = notes
+                )
             )
         }
     }

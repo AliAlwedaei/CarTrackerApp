@@ -28,6 +28,7 @@ import com.cartracker.ui.viewmodel.HistoryViewModel
 import com.cartracker.ui.viewmodel.HistoryViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,7 +150,7 @@ private fun HistoryEventRow(event: HistoryEvent) {
         // Date bubble
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(36.dp)) {
             val cal = Calendar.getInstance().apply { timeInMillis = event.date }
-            Text("%02d".format(cal.get(Calendar.DAY_OF_MONTH)),
+            Text(String.format(Locale.US, "%02d", cal.get(Calendar.DAY_OF_MONTH)),
                 color = OnSurfacePrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 18.sp)
             Text(SimpleDateFormat("MMM", Locale.getDefault()).format(Date(event.date)),
                 color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)

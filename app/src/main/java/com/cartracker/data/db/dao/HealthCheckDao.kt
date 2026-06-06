@@ -10,6 +10,9 @@ interface HealthCheckDao {
     @Query("SELECT * FROM health_checks WHERE carId = :carId ORDER BY checkType")
     fun getHealthChecksForCar(carId: Long): Flow<List<HealthCheck>>
 
+    @Query("SELECT * FROM health_checks WHERE carId = :carId")
+    suspend fun getHealthChecksOnce(carId: Long): List<HealthCheck>
+
     @Query("SELECT * FROM health_checks WHERE carId = :carId AND checkType = :type LIMIT 1")
     suspend fun getHealthCheck(carId: Long, type: HealthCheckType): HealthCheck?
 

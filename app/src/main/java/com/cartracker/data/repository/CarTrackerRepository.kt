@@ -10,7 +10,8 @@ class CarTrackerRepository(
     private val maintenanceLogDao: MaintenanceLogDao,
     private val tripDao: TripDao,
     private val reminderDao: ReminderDao,
-    private val healthCheckDao: HealthCheckDao
+    private val healthCheckDao: HealthCheckDao,
+    private val expenseDao: ExpenseDao
 ) {
     // Cars
     val allCars: Flow<List<Car>> = carDao.getAllCars()
@@ -33,6 +34,8 @@ class CarTrackerRepository(
     suspend fun getMonthlyCost(carId: Long, fromDate: Long) = fuelLogDao.getMonthlyCost(carId, fromDate)
     suspend fun getFuelLogsFrom(carId: Long, fromDate: Long) = fuelLogDao.getFuelLogsFrom(carId, fromDate)
     suspend fun getAverageFuelEfficiency(carId: Long) = fuelLogDao.getAverageFuelEfficiency(carId)
+    suspend fun getFuelTotalAllTime(carId: Long) = fuelLogDao.getTotalCostAllTime(carId)
+    suspend fun getLastPricePerLiter(carId: Long) = fuelLogDao.getLastPricePerLiter(carId)
 
     // Maintenance Logs
     fun getMaintenanceLogsForCar(carId: Long): Flow<List<MaintenanceLog>> = maintenanceLogDao.getMaintenanceLogsForCar(carId)
@@ -40,6 +43,9 @@ class CarTrackerRepository(
     suspend fun insertMaintenanceLog(log: MaintenanceLog) = maintenanceLogDao.insertMaintenanceLog(log)
     suspend fun updateMaintenanceLog(log: MaintenanceLog) = maintenanceLogDao.updateMaintenanceLog(log)
     suspend fun deleteMaintenanceLog(log: MaintenanceLog) = maintenanceLogDao.deleteMaintenanceLog(log)
+    suspend fun getMaintenanceTotalFrom(carId: Long, fromDate: Long) = maintenanceLogDao.getTotalFrom(carId, fromDate)
+    suspend fun getMaintenanceTotalAllTime(carId: Long) = maintenanceLogDao.getTotalAllTime(carId)
+    suspend fun getMaintenanceTotalByCategory(carId: Long) = maintenanceLogDao.getTotalByCategory(carId)
 
     // Trips
     fun getTripsForCar(carId: Long): Flow<List<Trip>> = tripDao.getTripsForCar(carId)
@@ -51,11 +57,12 @@ class CarTrackerRepository(
 
     // Health Checks
     fun getHealthChecksForCar(carId: Long): Flow<List<HealthCheck>> = healthCheckDao.getHealthChecksForCar(carId)
+    suspend fun getHealthChecksOnce(carId: Long) = healthCheckDao.getHealthChecksOnce(carId)
     suspend fun getHealthCheck(carId: Long, type: HealthCheckType) = healthCheckDao.getHealthCheck(carId, type)
     suspend fun insertHealthCheck(check: HealthCheck) = healthCheckDao.insertHealthCheck(check)
     suspend fun markHealthCheckDone(carId: Long, type: HealthCheckType, timestamp: Long, odometer: Double, notes: String? = null) = healthCheckDao.markDone(carId, type, timestamp, odometer, notes)
     suspend fun setHealthCheckKmData(carId: Long, type: HealthCheckType, intervalKm: Int, odometer: Double) = healthCheckDao.setKmData(carId, type, intervalKm, odometer)
-    suspend fun updateHealthCheck(check: com.cartracker.data.db.entities.HealthCheck) = healthCheckDao.updateHealthCheck(check)
+    suspend fun updateHealthCheck(check: HealthCheck) = healthCheckDao.updateHealthCheck(check)
 
     // Reminders
     fun getRemindersForCar(carId: Long): Flow<List<Reminder>> = reminderDao.getRemindersForCar(carId)
@@ -64,4 +71,12 @@ class CarTrackerRepository(
     suspend fun updateReminder(reminder: Reminder) = reminderDao.updateReminder(reminder)
     suspend fun deleteReminder(reminder: Reminder) = reminderDao.deleteReminder(reminder)
     suspend fun markReminderCompleted(reminderId: Long) = reminderDao.markCompleted(reminderId)
+
+    // Expenses
+    fun getExpensesForCar(carId: Long): Flow<List<Expense>> = expenseDao.getExpensesForCar(carId)
+    suspend fun getExpenseTotalFrom(carId: Long, fromDate: Long) = expenseDao.getTotalFrom(carId, fromDate)
+    suspend fun getExpenseTotalAllTime(carId: Long) = expenseDao.getTotalAllTime(carId)
+    suspend fun insertExpense(expense: Expense) = expenseDao.insertExpense(expense)
+    suspend fun updateExpense(expense: Expense) = expenseDao.updateExpense(expense)
+    suspend fun deleteExpense(expense: Expense) = expenseDao.deleteExpense(expense)
 }
