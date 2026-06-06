@@ -10,6 +10,8 @@ enum class MaintenanceCategory(val displayName: String) {
     TIRES("Tires"),
     BRAKES("Brakes"),
     BATTERY("Battery"),
+    FILTERS("Filters"),
+    WIPERS("Wipers"),
     OTHER("Other")
 }
 

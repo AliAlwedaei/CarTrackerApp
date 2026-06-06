@@ -8,12 +8,16 @@ import androidx.room.PrimaryKey
 enum class HealthCheckType(
     val displayName: String,
     val description: String,
-    val defaultIntervalDays: Int
+    val defaultIntervalDays: Int,
+    val maintenanceCategory: MaintenanceCategory? = null,
+    val serviceLabel: String = "Log Service"
 ) {
     ENGINE_OIL(
-        "Engine Oil Level",
+        "Engine Oil",
         "Check dipstick — top up if below MIN mark",
-        14
+        90,
+        MaintenanceCategory.OIL_CHANGE,
+        "Log Oil Change"
     ),
     TYRE_PRESSURE(
         "Tyre Pressure",
@@ -36,24 +40,32 @@ enum class HealthCheckType(
         30
     ),
     BRAKE_FLUID(
-        "Brake Fluid Level",
+        "Brake Fluid",
         "Check master cylinder reservoir is above MIN",
-        90
+        180,
+        MaintenanceCategory.BRAKES,
+        "Log Brake Service"
     ),
     BATTERY(
-        "Battery Terminals",
-        "Inspect for corrosion and secure connections",
-        90
+        "Battery",
+        "Inspect terminals for corrosion and secure connections",
+        365,
+        MaintenanceCategory.BATTERY,
+        "Log Battery Service"
     ),
     AIR_FILTER(
         "Air Filter",
         "Visual inspection — replace if heavily soiled",
-        180
+        365,
+        MaintenanceCategory.FILTERS,
+        "Log Filter Replacement"
     ),
     WIPER_BLADES(
         "Wiper Blades",
         "Check for streaking, cracking, or poor contact",
-        180
+        180,
+        MaintenanceCategory.WIPERS,
+        "Log Wiper Replacement"
     )
 }
 

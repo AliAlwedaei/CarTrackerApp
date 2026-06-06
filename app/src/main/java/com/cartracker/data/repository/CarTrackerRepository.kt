@@ -55,6 +55,7 @@ class CarTrackerRepository(
     suspend fun insertHealthCheck(check: HealthCheck) = healthCheckDao.insertHealthCheck(check)
     suspend fun markHealthCheckDone(carId: Long, type: HealthCheckType, timestamp: Long, odometer: Double, notes: String? = null) = healthCheckDao.markDone(carId, type, timestamp, odometer, notes)
     suspend fun setHealthCheckKmData(carId: Long, type: HealthCheckType, intervalKm: Int, odometer: Double) = healthCheckDao.setKmData(carId, type, intervalKm, odometer)
+    suspend fun updateHealthCheck(check: com.cartracker.data.db.entities.HealthCheck) = healthCheckDao.updateHealthCheck(check)
 
     // Reminders
     fun getRemindersForCar(carId: Long): Flow<List<Reminder>> = reminderDao.getRemindersForCar(carId)

@@ -2,6 +2,7 @@ package com.cartracker.ui.screens.healthchecks
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -57,7 +58,9 @@ fun HealthChecksScreen(carId: Long?) {
     )
     val checks by viewModel.checks.observeAsState(emptyList())
 
-    var showOilSheet by remember { mutableStateOf<HealthCheckUi?>(null) }
+    var showOilSheet       by remember { mutableStateOf<HealthCheckUi?>(null) }
+    var showServiceSheet   by remember { mutableStateOf<HealthCheckUi?>(null) }
+    var editIntervalFor    by remember { mutableStateOf<HealthCheckUi?>(null) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
 
@@ -86,34 +89,60 @@ fun HealthChecksScreen(carId: Long?) {
         item {
             val overdue = checks.count { it.status == CheckStatus.NEVER_DONE || it.status == CheckStatus.OVERDUE }
             val dueSoon = checks.count { it.status == CheckStatus.DUE_SOON }
-            val ok = checks.count { it.status == CheckStatus.OK }
+            val ok      = checks.count { it.status == CheckStatus.OK }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryChip(count = overdue, label = "Attention",  color = ErrorRed,     modifier = Modifier.weight(1f))
-                SummaryChip(count = dueSoon, label = "Due Soon",   color = WarnAmber,    modifier = Modifier.weight(1f))
-                SummaryChip(count = ok,      label = "Good",       color = SuccessGreen, modifier = Modifier.weight(1f))
+                SummaryChip(overdue, "Attention",  ErrorRed,     Modifier.weight(1f))
+                SummaryChip(dueSoon, "Due Soon",   WarnAmber,    Modifier.weight(1f))
+                SummaryChip(ok,      "Good",       SuccessGreen, Modifier.weight(1f))
             }
         }
 
         items(checks, key = { it.check.checkType.name }) { ui ->
             HealthCheckCard(
                 ui = ui,
-                onMarkDone = {
-                    if (ui.check.checkType == HealthCheckType.ENGINE_OIL) {
-                        showOilSheet = ui
-                    } else {
-                        viewModel.markDone(ui.check.carId, ui.check.checkType)
+                onEditInterval = { editIntervalFor = ui },
+                onAction = {
+                    when {
+                        ui.check.checkType == HealthCheckType.ENGINE_OIL -> showOilSheet = ui
+                        ui.isMaintenanceBacked -> showServiceSheet = ui
+                        else -> viewModel.markDone(ui.check.carId, ui.check.checkType)
                     }
                 }
             )
         }
     }
 
+    // Oil Change sheet (ENGINE_OIL — specialized)
     showOilSheet?.let { ui ->
         OilChangeSheet(
             onDismiss = { showOilSheet = null },
             onSave = { brand, spec, liters, cost ->
                 viewModel.logOilChange(ui.check.carId, brand, spec, liters, cost)
                 showOilSheet = null
+            }
+        )
+    }
+
+    // Generic service sheet (BRAKE_FLUID, BATTERY, AIR_FILTER, WIPER_BLADES)
+    showServiceSheet?.let { ui ->
+        ServiceSheet(
+            type = ui.check.checkType,
+            onDismiss = { showServiceSheet = null },
+            onSave = { brand, cost, notes ->
+                viewModel.logServiceEntry(ui.check.carId, ui.check.checkType, brand, cost, notes)
+                showServiceSheet = null
+            }
+        )
+    }
+
+    // Edit Interval sheet
+    editIntervalFor?.let { ui ->
+        EditIntervalSheet(
+            check = ui.check,
+            onDismiss = { editIntervalFor = null },
+            onSave = { days, km ->
+                viewModel.updateInterval(ui.check, days, km)
+                editIntervalFor = null
             }
         )
     }
@@ -124,8 +153,7 @@ fun HealthChecksScreen(carId: Long?) {
 @Composable
 private fun SummaryChip(count: Int, label: String, color: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+        modifier = modifier.clip(RoundedCornerShape(12.dp))
             .background(color.copy(alpha = 0.12f))
             .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
             .padding(vertical = 10.dp),
@@ -141,7 +169,7 @@ private fun SummaryChip(count: Int, label: String, color: Color, modifier: Modif
 // ─── Check Card ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun HealthCheckCard(ui: HealthCheckUi, onMarkDone: () -> Unit) {
+private fun HealthCheckCard(ui: HealthCheckUi, onEditInterval: () -> Unit, onAction: () -> Unit) {
     val check = ui.check
     val accent = when (ui.status) {
         CheckStatus.NEVER_DONE, CheckStatus.OVERDUE -> ErrorRed
@@ -149,23 +177,18 @@ private fun HealthCheckCard(ui: HealthCheckUi, onMarkDone: () -> Unit) {
         CheckStatus.OK                              -> SuccessGreen
     }
     val icon = checkIcons[check.checkType] ?: Icons.Filled.CheckCircle
-    val isOil = check.checkType == HealthCheckType.ENGINE_OIL
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
             .background(SurfaceContainer)
             .border(1.dp, accent.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
             // Header
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha = 0.13f)),
-                        Alignment.Center
-                    ) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha = 0.13f)), Alignment.Center) {
                         Icon(icon, null, tint = accent, modifier = Modifier.size(20.dp))
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -175,59 +198,74 @@ private fun HealthCheckCard(ui: HealthCheckUi, onMarkDone: () -> Unit) {
                             style = MaterialTheme.typography.labelSmall, lineHeight = 14.sp)
                     }
                 }
-                Box(
-                    Modifier.clip(RoundedCornerShape(8.dp)).background(accent.copy(alpha = 0.13f))
-                        .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(statusLabel(ui), color = accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // Edit interval button
+                    Box(
+                        Modifier.size(28.dp).clip(RoundedCornerShape(6.dp))
+                            .background(SurfaceContainerHigh).clickable(onClick = onEditInterval),
+                        Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Tune, "Edit interval", tint = OnSurfaceSecondary, modifier = Modifier.size(14.dp))
+                    }
+                    // Status badge
+                    Box(
+                        Modifier.clip(RoundedCornerShape(8.dp)).background(accent.copy(alpha = 0.13f))
+                            .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(statusLabel(ui), color = accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 
-            // Progress bar
+            // Progress bar + labels
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 LinearProgressIndicator(
                     progress = { ui.progress },
                     modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-                    color = accent,
-                    trackColor = accent.copy(alpha = 0.12f)
+                    color = accent, trackColor = accent.copy(alpha = 0.12f)
                 )
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                     Text(lastCheckedLabel(ui), color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
                     Text(intervalLabel(check), color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
                 }
+                // Next service km target
+                if (ui.nextServiceKm != null) {
+                    Text(
+                        "Next at %,.0f km".format(ui.nextServiceKm),
+                        color = accent.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
-            // Last oil change details (shown after logging)
-            if (!check.notes.isNullOrBlank()) {
+            // Last service notes
+            if (!ui.lastServiceNotes.isNullOrBlank()) {
                 Box(
-                    Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                         .background(accent.copy(alpha = 0.07f))
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(Icons.Filled.Opacity, null, tint = accent.copy(alpha = 0.7f), modifier = Modifier.size(12.dp))
-                        Text(check.notes, color = accent.copy(alpha = 0.9f), style = MaterialTheme.typography.labelSmall)
+                        Text(ui.lastServiceNotes, color = accent.copy(alpha = 0.9f), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
 
             // Action button
             Button(
-                onClick = onMarkDone,
+                onClick = onAction,
                 modifier = Modifier.fillMaxWidth().height(40.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accent.copy(alpha = 0.15f),
-                    contentColor = accent
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = accent.copy(alpha = 0.15f), contentColor = accent),
                 shape = RoundedCornerShape(10.dp),
                 elevation = ButtonDefaults.buttonElevation(0.dp)
             ) {
-                Icon(if (isOil) Icons.Filled.Opacity else Icons.Filled.Check,
+                Icon(if (ui.isMaintenanceBacked) Icons.Filled.Opacity else Icons.Filled.Check,
                     null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(if (isOil) "Log Oil Change" else "Mark Done Today",
+                Text(if (ui.isMaintenanceBacked) check.checkType.serviceLabel else "Mark Done Today",
                     fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
         }
@@ -238,75 +276,135 @@ private fun HealthCheckCard(ui: HealthCheckUi, onMarkDone: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OilChangeSheet(
-    onDismiss: () -> Unit,
-    onSave: (brand: String, spec: String, liters: Double?, cost: Double?) -> Unit
-) {
+private fun OilChangeSheet(onDismiss: () -> Unit, onSave: (String, String, Double?, Double?) -> Unit) {
     var brand  by remember { mutableStateOf("") }
     var spec   by remember { mutableStateOf("") }
     var liters by remember { mutableStateOf("") }
     var cost   by remember { mutableStateOf("") }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = SurfaceContainer,
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceContainer,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = {
-            Box(Modifier.padding(top = 12.dp, bottom = 4.dp).size(width = 36.dp, height = 4.dp)
-                .clip(RoundedCornerShape(2.dp)).background(SurfaceContainerHighest))
-        }
+        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 4.dp).size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(SurfaceContainerHighest)) }
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp).padding(bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text("Log Oil Change", style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
-
-            // Subtle note that it auto-creates a service log
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                    .background(NeonCyanGlow).border(1.dp, NeonCyanBorder, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Info, null, tint = NeonCyan, modifier = Modifier.size(14.dp))
-                    Text("Also saves to Service log automatically", color = NeonCyan,
-                        style = MaterialTheme.typography.labelSmall)
-                }
-            }
-
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Log Oil Change", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+            InfoBanner("Also saves to Service log automatically")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = brand, onValueChange = { brand = it },
-                    label = { Text("Brand") },
+                OutlinedTextField(value = brand, onValueChange = { brand = it }, label = { Text("Brand") },
                     placeholder = { Text("e.g. Shell Helix", color = OnSurfaceSecondary) },
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
-                OutlinedTextField(value = spec, onValueChange = { spec = it },
-                    label = { Text("Viscosity") },
+                OutlinedTextField(value = spec, onValueChange = { spec = it }, label = { Text("Viscosity") },
                     placeholder = { Text("e.g. 5W-30", color = OnSurfaceSecondary) },
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
             }
-
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = liters, onValueChange = { liters = it },
-                    label = { Text("Liters") },
+                OutlinedTextField(value = liters, onValueChange = { liters = it }, label = { Text("Liters") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
-                OutlinedTextField(value = cost, onValueChange = { cost = it },
-                    label = { Text("Cost (BD)") },
+                OutlinedTextField(value = cost, onValueChange = { cost = it }, label = { Text("Cost (BD)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f), colors = sheetFieldColors())
             }
+            Button(onClick = { onSave(brand.trim(), spec.trim(), liters.toDoubleOrNull(), cost.toDoubleOrNull()) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
+                shape = RoundedCornerShape(14.dp)) {
+                Text("Save Oil Change", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+    }
+}
 
+// ─── Generic Service Sheet ───────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ServiceSheet(type: HealthCheckType, onDismiss: () -> Unit, onSave: (String, Double?, String) -> Unit) {
+    var brand by remember { mutableStateOf("") }
+    var cost  by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceContainer,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 4.dp).size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(SurfaceContainerHighest)) }
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(type.serviceLabel, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+            InfoBanner("Also saves to Service log automatically")
+            OutlinedTextField(value = brand, onValueChange = { brand = it },
+                label = { Text("Brand / Part") },
+                placeholder = { Text("e.g. Bosch, OEM…", color = OnSurfaceSecondary) },
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = cost, onValueChange = { cost = it }, label = { Text("Cost (BD)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
+                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") },
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
+            }
+            Button(onClick = { onSave(brand.trim(), cost.toDoubleOrNull(), notes.trim()) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
+                shape = RoundedCornerShape(14.dp)) {
+                Text("Save", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+    }
+}
+
+// ─── Edit Interval Sheet ─────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditIntervalSheet(check: HealthCheck, onDismiss: () -> Unit, onSave: (Int, Int?) -> Unit) {
+    var days by remember { mutableStateOf(check.intervalDays.toString()) }
+    var km   by remember { mutableStateOf(check.intervalKm?.toString() ?: "") }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceContainer,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 4.dp).size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(SurfaceContainerHighest)) }
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Edit Interval · ${check.checkType.displayName}",
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = days, onValueChange = { days = it }, label = { Text("Every (days)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
+                OutlinedTextField(value = km, onValueChange = { km = it }, label = { Text("Every (km)") },
+                    placeholder = { Text("optional", color = OnSurfaceSecondary) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
+            }
+            Text("Whichever trigger fires first will flag this check.",
+                color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
             Button(
                 onClick = {
-                    onSave(brand.trim(), spec.trim(), liters.toDoubleOrNull(), cost.toDoubleOrNull())
+                    val d = days.toIntOrNull() ?: return@Button
+                    onSave(d, km.toIntOrNull())
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
                 shape = RoundedCornerShape(14.dp)
-            ) { Text("Save Oil Change", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+            ) { Text("Save Interval", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        }
+    }
+}
+
+// ─── Shared banner ───────────────────────────────────────────────────────────
+
+@Composable
+private fun InfoBanner(text: String) {
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+        .background(NeonCyanGlow).border(1.dp, NeonCyanBorder, RoundedCornerShape(10.dp))
+        .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Info, null, tint = NeonCyan, modifier = Modifier.size(14.dp))
+            Text(text, color = NeonCyan, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -315,29 +413,22 @@ private fun OilChangeSheet(
 
 private fun statusLabel(ui: HealthCheckUi): String = when (ui.status) {
     CheckStatus.NEVER_DONE -> "Never done"
-    CheckStatus.OVERDUE    -> {
-        val kmOver = ui.kmUntilDue?.let { if (it < 0) "${(-it).toInt()} km over" else null }
-        kmOver ?: "${abs(ui.daysUntilDue)}d overdue"
-    }
-    CheckStatus.DUE_SOON   -> {
-        val kmSoon = ui.kmUntilDue?.let { if (it in 0.0..500.0) "${it.toInt()} km left" else null }
-        kmSoon ?: if (ui.daysUntilDue == 0L) "Due today" else "Due in ${ui.daysUntilDue}d"
-    }
-    CheckStatus.OK         -> {
-        val kmLabel = ui.kmUntilDue?.let { "${it.toInt()} km left" }
-        kmLabel ?: "Due in ${ui.daysUntilDue}d"
-    }
+    CheckStatus.OVERDUE    -> ui.kmUntilDue?.let { if (it < 0) "${(-it).toInt()} km over" else null }
+        ?: "${abs(ui.daysUntilDue)}d overdue"
+    CheckStatus.DUE_SOON   -> ui.kmUntilDue?.let { if (it in 0.0..500.0) "${it.toInt()} km left" else null }
+        ?: if (ui.daysUntilDue == 0L) "Due today" else "Due in ${ui.daysUntilDue}d"
+    CheckStatus.OK         -> ui.kmUntilDue?.let { "${it.toInt()} km left" }
+        ?: "Due in ${ui.daysUntilDue}d"
 }
 
 private fun lastCheckedLabel(ui: HealthCheckUi): String {
     val daysLabel = when {
-        ui.daysSinceLast == null -> "Never checked"
+        ui.daysSinceLast == null -> "Never done"
         ui.daysSinceLast == 0L   -> "Today"
         ui.daysSinceLast == 1L   -> "Yesterday"
         else                     -> "${ui.daysSinceLast}d ago"
     }
-    val kmLabel = ui.kmSinceLast?.let { "%.0f km since".format(it) }
-    return if (kmLabel != null) "$kmLabel · $daysLabel" else daysLabel
+    return ui.kmSinceLast?.let { "%.0f km · $daysLabel".format(it) } ?: daysLabel
 }
 
 private fun intervalLabel(check: HealthCheck): String {
@@ -345,11 +436,10 @@ private fun intervalLabel(check: HealthCheck): String {
         check.intervalDays < 14  -> "${check.intervalDays} days"
         check.intervalDays < 60  -> "${check.intervalDays / 7} weeks"
         check.intervalDays < 365 -> "${check.intervalDays / 30} months"
-        else                     -> "${check.intervalDays / 365} year"
+        else                     -> "${check.intervalDays / 365} yr"
     }
-    return if (check.intervalKm != null) {
+    return if (check.intervalKm != null)
         "Every ${String.format(Locale.US, "%,d", check.intervalKm)} km"
-    } else {
+    else
         "Every $timeLabel"
-    }
 }
