@@ -5,6 +5,7 @@ import androidx.lifecycle.*
 import com.cartracker.CarTrackerApp
 import com.cartracker.data.db.entities.*
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -46,9 +47,39 @@ class HealthChecksViewModel(application: Application) : AndroidViewModel(applica
         }.asLiveData()
     }
 
+    val customChecks: LiveData<List<CustomHealthCheck>> = _carId.switchMap { carId ->
+        repository.getCustomChecksForCar(carId).asLiveData()
+    }
+
     fun setCarId(carId: Long) {
         _carId.value = carId
         viewModelScope.launch { ensureAllChecksExist(carId) }
+    }
+
+    fun addCustomCheck(carId: Long, name: String, description: String, intervalDays: Int, intervalKm: Int?) {
+        viewModelScope.launch {
+            repository.insertCustomCheck(
+                CustomHealthCheck(carId = carId, name = name, description = description,
+                    intervalDays = intervalDays, intervalKm = intervalKm)
+            )
+        }
+    }
+
+    fun markCustomDone(check: CustomHealthCheck) {
+        viewModelScope.launch {
+            val odo = repository.getCarById(check.carId)?.currentOdometer ?: 0.0
+            repository.markCustomCheckDone(check.id, System.currentTimeMillis(), odo)
+        }
+    }
+
+    fun updateCustomInterval(check: CustomHealthCheck, intervalDays: Int, intervalKm: Int?) {
+        viewModelScope.launch {
+            repository.updateCustomCheck(check.copy(intervalDays = intervalDays, intervalKm = intervalKm))
+        }
+    }
+
+    fun deleteCustomCheck(check: CustomHealthCheck) {
+        viewModelScope.launch { repository.deleteCustomCheck(check) }
     }
 
     // For types not backed by maintenance logs (TYRE_PRESSURE, COOLANT, WASHER_FLUID, LIGHTS)

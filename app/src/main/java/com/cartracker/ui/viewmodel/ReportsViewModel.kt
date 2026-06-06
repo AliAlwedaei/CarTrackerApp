@@ -1,10 +1,12 @@
 package com.cartracker.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.*
 import com.cartracker.CarTrackerApp
 import com.cartracker.data.db.dao.MaintenanceCategoryTotal
 import com.cartracker.data.db.entities.TripPurpose
+import com.cartracker.util.ExportUtil
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -73,6 +75,27 @@ class ReportsViewModel(application: Application) : AndroidViewModel(application)
                 totalFillUps = totalFillUps,
                 avgEfficiency = avgEfficiency
             )
+        }
+    }
+
+    fun exportFuelCsv(context: Context, carId: Long, currency: String) {
+        viewModelScope.launch {
+            val logs = repository.getAllFuelLogsSorted(carId)
+            ExportUtil.shareText(context, "fuel_logs.csv", ExportUtil.buildFuelCsv(logs, currency))
+        }
+    }
+
+    fun exportMaintenanceCsv(context: Context, carId: Long, currency: String) {
+        viewModelScope.launch {
+            val logs = repository.getMaintenanceLogsForCar(carId).first()
+            ExportUtil.shareText(context, "maintenance_log.csv", ExportUtil.buildMaintenanceCsv(logs, currency))
+        }
+    }
+
+    fun exportExpensesCsv(context: Context, carId: Long, currency: String) {
+        viewModelScope.launch {
+            val expenses = repository.getExpensesForCar(carId).first()
+            ExportUtil.shareText(context, "expenses.csv", ExportUtil.buildExpenseCsv(expenses, currency))
         }
     }
 }

@@ -11,6 +11,7 @@ enum class ExpenseCategory(val displayName: String) {
     PARKING("Parking"),
     TOLL("Toll / Fines"),
     CAR_WASH("Car Wash"),
+    DETAILING("Detailing / Polish"),
     ACCESSORIES("Accessories"),
     LOAN_PAYMENT("Loan Payment"),
     OTHER("Other")

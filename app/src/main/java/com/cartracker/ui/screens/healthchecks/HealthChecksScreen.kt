@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cartracker.data.db.entities.CustomHealthCheck
 import com.cartracker.data.db.entities.HealthCheck
 import com.cartracker.data.db.entities.HealthCheckType
 import com.cartracker.ui.screens.fuellog.sheetFieldColors
@@ -58,9 +59,13 @@ fun HealthChecksScreen(carId: Long?) {
     )
     val checks by viewModel.checks.observeAsState(emptyList())
 
+    val customChecks by viewModel.customChecks.observeAsState(emptyList())
+
     var showOilSheet       by remember { mutableStateOf<HealthCheckUi?>(null) }
     var showServiceSheet   by remember { mutableStateOf<HealthCheckUi?>(null) }
     var editIntervalFor    by remember { mutableStateOf<HealthCheckUi?>(null) }
+    var showAddCustomSheet by remember { mutableStateOf(false) }
+    var deleteCustomTarget by remember { mutableStateOf<CustomHealthCheck?>(null) }
 
     LaunchedEffect(carId) { carId?.let { viewModel.setCarId(it) } }
 
@@ -110,6 +115,47 @@ fun HealthChecksScreen(carId: Long?) {
                 }
             )
         }
+
+        // Custom checks section
+        item {
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                Text("MY CUSTOM CHECKS", color = NeonCyan, fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp)
+                Box(
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                        .background(NeonCyanGlow).border(1.dp, NeonCyanBorder, RoundedCornerShape(8.dp))
+                        .clickable { showAddCustomSheet = true }
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Filled.Add, null, tint = NeonCyan, modifier = Modifier.size(14.dp))
+                        Text("Add Check", color = NeonCyan, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        if (customChecks.isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(SurfaceContainer).border(1.dp, GlassBorder, RoundedCornerShape(14.dp))
+                    .padding(20.dp), Alignment.Center) {
+                    Text("Add custom checks for things specific to your car — timing belt, AC, etc.",
+                        color = OnSurfaceSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        val nowMs = System.currentTimeMillis()
+        items(customChecks, key = { "custom_${it.id}" }) { check ->
+            CustomCheckCard(
+                check = check,
+                nowMs = nowMs,
+                onMarkDone = { viewModel.markCustomDone(check) },
+                onDelete = { deleteCustomTarget = check }
+            )
+        }
     }
 
     // Oil Change sheet (ENGINE_OIL — specialized)
@@ -145,6 +191,177 @@ fun HealthChecksScreen(carId: Long?) {
                 editIntervalFor = null
             }
         )
+    }
+
+    // Add custom check sheet
+    if (showAddCustomSheet && carId != null) {
+        AddCustomCheckSheet(
+            onDismiss = { showAddCustomSheet = false },
+            onSave = { name, desc, days, km ->
+                viewModel.addCustomCheck(carId, name, desc, days, km)
+                showAddCustomSheet = false
+            }
+        )
+    }
+
+    // Delete custom check confirmation
+    deleteCustomTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteCustomTarget = null },
+            containerColor = SurfaceContainerHigh,
+            title = { Text("Remove '${target.name}'?", color = OnSurfacePrimary, fontWeight = FontWeight.Bold) },
+            text = { Text("This custom check will be permanently deleted.", color = OnSurfaceSecondary) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteCustomCheck(target); deleteCustomTarget = null }) {
+                    Text("Remove", color = ErrorRed, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleteCustomTarget = null }) { Text("Cancel", color = OnSurfaceSecondary) } }
+        )
+    }
+}
+
+// ─── Custom Check Card ───────────────────────────────────────────────────────
+
+@Composable
+private fun CustomCheckCard(
+    check: CustomHealthCheck,
+    nowMs: Long,
+    onMarkDone: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val daysSince = check.lastCheckedAt?.let { (nowMs - it) / (1000L * 60 * 60 * 24) }
+    val daysLeft = if (daysSince != null) check.intervalDays - daysSince else -check.intervalDays.toLong()
+    val status = when {
+        daysSince == null -> CheckStatus.NEVER_DONE
+        daysLeft < 0 -> CheckStatus.OVERDUE
+        daysLeft <= 7 -> CheckStatus.DUE_SOON
+        else -> CheckStatus.OK
+    }
+    val accent = when (status) {
+        CheckStatus.NEVER_DONE, CheckStatus.OVERDUE -> ErrorRed
+        CheckStatus.DUE_SOON -> WarnAmber
+        CheckStatus.OK -> SuccessGreen
+    }
+    val progress = if (daysSince != null) (daysSince.toFloat() / check.intervalDays).coerceIn(0f, 1f) else 1f
+
+    Box(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .background(SurfaceContainer).border(1.dp, accent.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha = 0.13f)), Alignment.Center) {
+                        Icon(Icons.Filled.CheckCircle, null, tint = accent, modifier = Modifier.size(20.dp))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(check.name, color = OnSurfacePrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                        if (check.description.isNotBlank()) {
+                            Text(check.description, color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall, lineHeight = 14.sp)
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.clip(RoundedCornerShape(8.dp)).background(accent.copy(alpha = 0.13f))
+                            .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            when (status) {
+                                CheckStatus.NEVER_DONE -> "Never done"
+                                CheckStatus.OVERDUE -> "${(-daysLeft)}d overdue"
+                                CheckStatus.DUE_SOON -> if (daysLeft == 0L) "Due today" else "Due in ${daysLeft}d"
+                                CheckStatus.OK -> "Due in ${daysLeft}d"
+                            },
+                            color = accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Filled.Delete, "Delete", tint = ErrorRed.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                color = accent, trackColor = accent.copy(alpha = 0.12f)
+            )
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                Text(
+                    when {
+                        daysSince == null -> "Never checked"
+                        daysSince == 0L -> "Today"
+                        else -> "${daysSince}d ago"
+                    },
+                    color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall
+                )
+                Text(
+                    "Every ${check.intervalDays}d" + (check.intervalKm?.let { " / %,d km".format(it) } ?: ""),
+                    color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Button(
+                onClick = onMarkDone,
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accent.copy(alpha = 0.15f), contentColor = accent),
+                shape = RoundedCornerShape(10.dp),
+                elevation = ButtonDefaults.buttonElevation(0.dp)
+            ) {
+                Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Mark Done Today", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+// ─── Add Custom Check Sheet ──────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddCustomCheckSheet(onDismiss: () -> Unit, onSave: (String, String, Int, Int?) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var intervalDays by remember { mutableStateOf("30") }
+    var intervalKm by remember { mutableStateOf("") }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SurfaceContainer,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 4.dp).size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(SurfaceContainerHighest)) }
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Add Custom Check", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+            OutlinedTextField(value = name, onValueChange = { name = it },
+                label = { Text("Check Name (e.g. Timing Belt)") },
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
+            OutlinedTextField(value = description, onValueChange = { description = it },
+                label = { Text("Description (optional)") },
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = intervalDays, onValueChange = { intervalDays = it },
+                    label = { Text("Check every (days)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
+                OutlinedTextField(value = intervalKm, onValueChange = { intervalKm = it },
+                    label = { Text("Or every (km)") },
+                    placeholder = { Text("optional", color = OnSurfaceSecondary) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f), colors = sheetFieldColors())
+            }
+            Button(
+                onClick = {
+                    if (name.isBlank()) return@Button
+                    val days = intervalDays.toIntOrNull()?.coerceAtLeast(1) ?: 30
+                    onSave(name.trim(), description.trim(), days, intervalKm.toIntOrNull())
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
+                shape = RoundedCornerShape(14.dp)
+            ) { Text("Add Check", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        }
     }
 }
 

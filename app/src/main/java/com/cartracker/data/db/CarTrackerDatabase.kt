@@ -9,10 +9,11 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.cartracker.data.db.dao.*
 import com.cartracker.data.db.entities.*
+import com.cartracker.data.db.entities.CustomHealthCheck
 
 @Database(
-    entities = [Car::class, FuelLog::class, MaintenanceLog::class, Trip::class, Reminder::class, HealthCheck::class, Expense::class],
-    version = 5,
+    entities = [Car::class, FuelLog::class, MaintenanceLog::class, Trip::class, Reminder::class, HealthCheck::class, Expense::class, CustomHealthCheck::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -24,6 +25,7 @@ abstract class CarTrackerDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
     abstract fun healthCheckDao(): HealthCheckDao
     abstract fun expenseDao(): ExpenseDao
+    abstract fun customHealthCheckDao(): CustomHealthCheckDao
 
     companion object {
         @Volatile private var INSTANCE: CarTrackerDatabase? = null
@@ -61,6 +63,32 @@ abstract class CarTrackerDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // FuelLog: fuel type
+                db.execSQL("ALTER TABLE `fuel_logs` ADD COLUMN `fuelType` TEXT NOT NULL DEFAULT 'REGULAR'")
+                // MaintenanceLog: warranty
+                db.execSQL("ALTER TABLE `maintenance_logs` ADD COLUMN `warrantyExpiryDate` INTEGER")
+                db.execSQL("ALTER TABLE `maintenance_logs` ADD COLUMN `warrantyNotes` TEXT NOT NULL DEFAULT ''")
+                // Custom health checks
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `custom_health_checks` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `carId` INTEGER NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT NOT NULL DEFAULT '',
+                        `intervalDays` INTEGER NOT NULL DEFAULT 30,
+                        `intervalKm` INTEGER,
+                        `lastCheckedAt` INTEGER,
+                        `lastCheckedAtOdometer` REAL,
+                        `createdAt` INTEGER NOT NULL,
+                        FOREIGN KEY(`carId`) REFERENCES `cars`(`id`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_health_checks_carId` ON `custom_health_checks` (`carId`)")
+            }
+        }
+
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // FuelLog: partial fill-up flag
@@ -94,7 +122,7 @@ abstract class CarTrackerDatabase : RoomDatabase() {
                     CarTrackerDatabase::class.java,
                     "car_tracker_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { INSTANCE = it }
             }

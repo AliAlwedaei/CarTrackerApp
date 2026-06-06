@@ -2,6 +2,7 @@ package com.cartracker.ui.screens.reports
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -111,9 +112,43 @@ fun ReportsScreen(
                     MaintenanceCategoryBreakdown(categories = data.maintenanceByCategory, totalMaint = data.totalMaintenanceCost, currency = currency)
                 }
 
+                // ── Export ────────────────────────────────────────────────
+                SectionHeader("EXPORT DATA", Icons.Filled.FileDownload)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExportButton("Export Fuel Logs (CSV)", Icons.Filled.LocalGasStation) {
+                        carId?.let { viewModel.exportFuelCsv(context, it, currency) }
+                    }
+                    ExportButton("Export Maintenance Log (CSV)", Icons.Filled.Build) {
+                        carId?.let { viewModel.exportMaintenanceCsv(context, it, currency) }
+                    }
+                    ExportButton("Export Expenses (CSV)", Icons.Filled.Receipt) {
+                        carId?.let { viewModel.exportExpensesCsv(context, it, currency) }
+                    }
+                }
+
                 Spacer(Modifier.height(16.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun ExportButton(label: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceContainer)
+            .border(1.dp, GlassBorder, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(icon, null, tint = NeonCyan, modifier = Modifier.size(18.dp))
+            Text(label, color = OnSurfacePrimary, style = MaterialTheme.typography.bodyMedium)
+        }
+        Icon(Icons.Filled.FileDownload, null, tint = OnSurfaceSecondary, modifier = Modifier.size(16.dp))
     }
 }
 

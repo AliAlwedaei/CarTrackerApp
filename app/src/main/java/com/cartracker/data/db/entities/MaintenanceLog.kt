@@ -42,5 +42,7 @@ data class MaintenanceLog(
     val cost: Double,
     val garage: String = "",
     val nextServiceKm: Double? = null,
+    val warrantyExpiryDate: Long? = null,
+    val warrantyNotes: String = "",
     val notes: String = ""
 )

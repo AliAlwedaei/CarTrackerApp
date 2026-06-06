@@ -11,7 +11,8 @@ class CarTrackerRepository(
     private val tripDao: TripDao,
     private val reminderDao: ReminderDao,
     private val healthCheckDao: HealthCheckDao,
-    private val expenseDao: ExpenseDao
+    private val expenseDao: ExpenseDao,
+    private val customHealthCheckDao: CustomHealthCheckDao
 ) {
     // Cars
     val allCars: Flow<List<Car>> = carDao.getAllCars()
@@ -79,4 +80,11 @@ class CarTrackerRepository(
     suspend fun insertExpense(expense: Expense) = expenseDao.insertExpense(expense)
     suspend fun updateExpense(expense: Expense) = expenseDao.updateExpense(expense)
     suspend fun deleteExpense(expense: Expense) = expenseDao.deleteExpense(expense)
+
+    // Custom Health Checks
+    fun getCustomChecksForCar(carId: Long): Flow<List<CustomHealthCheck>> = customHealthCheckDao.getCustomChecksForCar(carId)
+    suspend fun insertCustomCheck(check: CustomHealthCheck) = customHealthCheckDao.insertCustomCheck(check)
+    suspend fun updateCustomCheck(check: CustomHealthCheck) = customHealthCheckDao.updateCustomCheck(check)
+    suspend fun deleteCustomCheck(check: CustomHealthCheck) = customHealthCheckDao.deleteCustomCheck(check)
+    suspend fun markCustomCheckDone(id: Long, timestamp: Long, odometer: Double) = customHealthCheckDao.markDone(id, timestamp, odometer)
 }

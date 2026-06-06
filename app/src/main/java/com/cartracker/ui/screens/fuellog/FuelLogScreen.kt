@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cartracker.data.db.entities.Car
 import com.cartracker.data.db.entities.FuelLog
+import com.cartracker.data.db.entities.FuelType
 import com.cartracker.ui.components.CarPickerSheet
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.FuelLogViewModel
@@ -140,9 +141,9 @@ fun FuelLogScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: (L
             lastPricePerLiter = if (editingLog == null) lastPricePerLiter else null,
             currency = currency,
             onDismiss = { showSheet = false; editingLog = null },
-            onSave = { date, odo, liters, cpl, isFullTank, notes ->
-                if (editingLog != null) viewModel.updateFuelLog(editingLog!!, date, odo, liters, cpl, isFullTank, notes)
-                else viewModel.addFuelLog(carId, date, odo, liters, cpl, isFullTank, notes)
+            onSave = { date, odo, liters, cpl, isFullTank, fuelType, notes ->
+                if (editingLog != null) viewModel.updateFuelLog(editingLog!!, date, odo, liters, cpl, isFullTank, fuelType, notes)
+                else viewModel.addFuelLog(carId, date, odo, liters, cpl, isFullTank, fuelType, notes)
                 showSheet = false; editingLog = null
             }
         )
@@ -212,9 +213,14 @@ private fun FuelLogCard(
                 StatCell("Liters", "%.2f L".format(log.liters))
                 StatCell("Total", "$currency %.3f".format(log.totalCost))
             }
-            if (log.fuelEfficiency > 0 || !log.isFullTank) {
+            if (log.fuelEfficiency > 0 || !log.isFullTank || log.fuelType != FuelType.REGULAR) {
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (log.fuelType != FuelType.REGULAR) {
+                        Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(SurfaceContainerHighest).padding(horizontal = 8.dp, vertical = 3.dp)) {
+                            Text(log.fuelType.displayName, color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                     if (!log.isFullTank) {
                         Box(
                             modifier = Modifier.clip(RoundedCornerShape(6.dp))
@@ -277,7 +283,7 @@ private fun FuelLogSheet(
     lastPricePerLiter: Double?,
     currency: String,
     onDismiss: () -> Unit,
-    onSave: (Long, Double, Double, Double, Boolean, String) -> Unit
+    onSave: (Long, Double, Double, Double, Boolean, FuelType, String) -> Unit
 ) {
     val isEdit = existingLog != null
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
@@ -297,6 +303,7 @@ private fun FuelLogSheet(
         )
     }
     var isFullTank by remember { mutableStateOf(existingLog?.isFullTank ?: true) }
+    var selectedFuelType by remember { mutableStateOf(existingLog?.fuelType ?: FuelType.REGULAR) }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
     var showDatePicker by remember { mutableStateOf(false) }
     var odometerError by remember { mutableStateOf(false) }
@@ -349,6 +356,35 @@ private fun FuelLogSheet(
                 )
             }
 
+            // Fuel type chips
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Fuel Type", color = OnSurfaceSecondary, fontSize = 11.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FuelType.entries.chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { ft ->
+                                val selected = selectedFuelType == ft
+                                Box(
+                                    modifier = Modifier.weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (selected) NeonCyanGlow else SurfaceContainerHigh)
+                                        .border(1.dp, if (selected) NeonCyanBorder else GlassBorder, RoundedCornerShape(8.dp))
+                                        .clickable { selectedFuelType = ft }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(ft.displayName, color = if (selected) NeonCyan else OnSurfaceSecondary,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                        maxLines = 1)
+                                }
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
+            }
+
             // Full tank toggle
             Row(
                 modifier = Modifier.fillMaxWidth()
@@ -398,7 +434,7 @@ private fun FuelLogSheet(
                     if (!isEdit && lastOdometer != null && odo < lastOdometer) {
                         odometerError = true; return@Button
                     }
-                    onSave(dateMs, odo, lit, cpl, isFullTank, notes)
+                    onSave(dateMs, odo, lit, cpl, isFullTank, selectedFuelType, notes)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),

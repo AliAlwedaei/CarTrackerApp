@@ -19,7 +19,8 @@ class CarTrackerApp : Application() {
             database.tripDao(),
             database.reminderDao(),
             database.healthCheckDao(),
-            database.expenseDao()
+            database.expenseDao(),
+            database.customHealthCheckDao()
         )
     }
 

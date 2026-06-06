@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.*
 import com.cartracker.CarTrackerApp
 import com.cartracker.data.db.entities.FuelLog
+import com.cartracker.data.db.entities.FuelType
 import kotlinx.coroutines.launch
 
 class FuelLogViewModel(application: Application) : AndroidViewModel(application) {
@@ -35,7 +36,7 @@ class FuelLogViewModel(application: Application) : AndroidViewModel(application)
 
     fun addFuelLog(
         carId: Long, date: Long, odometer: Double, liters: Double,
-        costPerLiter: Double, isFullTank: Boolean, notes: String
+        costPerLiter: Double, isFullTank: Boolean, fuelType: FuelType, notes: String
     ) {
         viewModelScope.launch {
             val prev = repository.getLatestFuelLog(carId)
@@ -44,7 +45,8 @@ class FuelLogViewModel(application: Application) : AndroidViewModel(application)
                 FuelLog(
                     carId = carId, date = date, odometer = odometer, liters = liters,
                     costPerLiter = costPerLiter, totalCost = liters * costPerLiter,
-                    fuelEfficiency = efficiency, isFullTank = isFullTank, notes = notes
+                    fuelEfficiency = efficiency, isFullTank = isFullTank,
+                    fuelType = fuelType, notes = notes
                 )
             )
             repository.updateOdometer(carId, odometer)
@@ -55,7 +57,7 @@ class FuelLogViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateFuelLog(
         existing: FuelLog, date: Long, odometer: Double, liters: Double,
-        costPerLiter: Double, isFullTank: Boolean, notes: String
+        costPerLiter: Double, isFullTank: Boolean, fuelType: FuelType, notes: String
     ) {
         viewModelScope.launch {
             val prev = repository.getPrevFuelLog(existing.carId, odometer)
@@ -65,7 +67,7 @@ class FuelLogViewModel(application: Application) : AndroidViewModel(application)
                     date = date, odometer = odometer, liters = liters,
                     costPerLiter = costPerLiter, totalCost = liters * costPerLiter,
                     fuelEfficiency = if (efficiency > 0) efficiency else existing.fuelEfficiency,
-                    isFullTank = isFullTank, notes = notes
+                    isFullTank = isFullTank, fuelType = fuelType, notes = notes
                 )
             )
         }

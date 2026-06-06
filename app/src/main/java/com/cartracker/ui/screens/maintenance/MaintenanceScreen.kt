@@ -146,9 +146,9 @@ fun MaintenanceScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected
             existingLog = editingLog,
             currency = currency,
             onDismiss = { showSheet = false; editingLog = null },
-            onSave = { cat, type, date, mileage, cost, garage, nextKm, notes ->
-                if (editingLog != null) viewModel.updateLog(editingLog!!, cat, type, date, mileage, cost, garage, nextKm, notes)
-                else viewModel.addMaintenanceLog(carId, cat, type, date, mileage, cost, garage, nextKm, notes)
+            onSave = { cat, type, date, mileage, cost, garage, nextKm, warrantyDate, warrantyNotes, notes ->
+                if (editingLog != null) viewModel.updateLog(editingLog!!, cat, type, date, mileage, cost, garage, nextKm, warrantyDate, warrantyNotes, notes)
+                else viewModel.addMaintenanceLog(carId, cat, type, date, mileage, cost, garage, nextKm, warrantyDate, warrantyNotes, notes)
                 showSheet = false; editingLog = null
             }
         )
@@ -236,6 +236,26 @@ private fun MaintenanceCard(log: MaintenanceLog, currency: String, onEdit: () ->
                         style = MaterialTheme.typography.labelSmall)
                 }
             }
+            if (log.warrantyExpiryDate != null) {
+                Spacer(Modifier.height(6.dp))
+                val now = System.currentTimeMillis()
+                val daysLeft = ((log.warrantyExpiryDate - now) / (1000L * 60 * 60 * 24)).toInt()
+                val warrantyColor = when {
+                    daysLeft < 0 -> OnSurfaceSecondary
+                    daysLeft <= 30 -> WarnAmber
+                    else -> SuccessGreen
+                }
+                val warrantyLabel = when {
+                    daysLeft < 0 -> "Warranty expired ${sdf.format(Date(log.warrantyExpiryDate))}"
+                    daysLeft == 0 -> "Warranty expires today"
+                    daysLeft <= 30 -> "Warranty expiring in $daysLeft days"
+                    else -> "Warranty until ${sdf.format(Date(log.warrantyExpiryDate))}"
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Filled.Verified, null, tint = warrantyColor, modifier = Modifier.size(12.dp))
+                    Text(warrantyLabel, color = warrantyColor, style = MaterialTheme.typography.labelSmall)
+                }
+            }
             if (log.notes.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(log.notes, color = OnSurfaceSecondary, style = MaterialTheme.typography.bodySmall)
@@ -252,7 +272,7 @@ private fun MaintenanceSheet(
     existingLog: MaintenanceLog?,
     currency: String,
     onDismiss: () -> Unit,
-    onSave: (MaintenanceCategory, String, Long, Double, Double, String, Double?, String) -> Unit
+    onSave: (MaintenanceCategory, String, Long, Double, Double, String, Double?, Long?, String, String) -> Unit
 ) {
     val isEdit = existingLog != null
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
@@ -264,8 +284,11 @@ private fun MaintenanceSheet(
     var cost by remember { mutableStateOf(existingLog?.cost?.let { String.format(Locale.US, "%.3f", it) } ?: "") }
     var garage by remember { mutableStateOf(existingLog?.garage ?: "") }
     var nextServiceKm by remember { mutableStateOf(existingLog?.nextServiceKm?.let { String.format(Locale.US, "%.0f", it) } ?: "") }
+    var warrantyExpiryMs by remember { mutableStateOf(existingLog?.warrantyExpiryDate) }
+    var warrantyNotes by remember { mutableStateOf(existingLog?.warrantyNotes ?: "") }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showWarrantyPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedCategory) {
         if (!isEdit && serviceType.isBlank()) {
@@ -348,6 +371,39 @@ private fun MaintenanceSheet(
                 leadingIcon = { Icon(Icons.Filled.Schedule, null, tint = OnSurfaceSecondary, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
 
+            // Warranty expiry (optional)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Warranty (optional)", color = OnSurfaceSecondary, fontSize = 11.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier.weight(1f)
+                            .clip(RoundedCornerShape(4.dp))
+                            .border(1.dp, GlassBorder, RoundedCornerShape(4.dp))
+                            .background(SurfaceContainerHigh)
+                            .clickable { showWarrantyPicker = true }
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                            Text(
+                                warrantyExpiryMs?.let { sdf.format(Date(it)) } ?: "No warranty date",
+                                color = if (warrantyExpiryMs != null) OnSurfacePrimary else OnSurfaceSecondary,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (warrantyExpiryMs != null) {
+                                Icon(Icons.Filled.Close, "Clear", tint = OnSurfaceSecondary, modifier = Modifier.size(16.dp).clickable { warrantyExpiryMs = null })
+                            } else {
+                                Icon(Icons.Filled.CalendarMonth, null, tint = OnSurfaceSecondary, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+                if (warrantyExpiryMs != null) {
+                    OutlinedTextField(value = warrantyNotes, onValueChange = { warrantyNotes = it },
+                        label = { Text("Warranty details (e.g. 3yr / 50,000 km)") },
+                        modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
+                }
+            }
+
             OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes (optional)") },
                 modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
 
@@ -357,7 +413,7 @@ private fun MaintenanceSheet(
                     val mi = mileage.toDoubleOrNull() ?: return@Button
                     val co = cost.toDoubleOrNull() ?: return@Button
                     val nextKm = nextServiceKm.toDoubleOrNull()
-                    onSave(selectedCategory, serviceType, dateMs, mi, co, garage, nextKm, notes)
+                    onSave(selectedCategory, serviceType, dateMs, mi, co, garage, nextKm, warrantyExpiryMs, warrantyNotes, notes)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),
@@ -377,5 +433,20 @@ private fun MaintenanceSheet(
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = OnSurfaceSecondary) } }
         ) { DatePicker(state = state) }
+    }
+
+    if (showWarrantyPicker) {
+        val warrantyState = rememberDatePickerState(
+            initialSelectedDateMillis = warrantyExpiryMs ?: (System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000)
+        )
+        DatePickerDialog(
+            onDismissRequest = { showWarrantyPicker = false },
+            confirmButton = {
+                TextButton(onClick = { warrantyExpiryMs = warrantyState.selectedDateMillis; showWarrantyPicker = false }) {
+                    Text("Set Expiry", color = NeonCyan, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showWarrantyPicker = false }) { Text("Cancel", color = OnSurfaceSecondary) } }
+        ) { DatePicker(state = warrantyState) }
     }
 }

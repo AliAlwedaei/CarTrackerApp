@@ -77,7 +77,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
             )
         },
         floatingActionButton = {
-            if (carId != null && selectedTab == 0) {
+            if (carId != null && selectedTab == 1) {
                 FloatingActionButton(onClick = { editingReminder = null; showSheet = true },
                     containerColor = NeonCyan, contentColor = TrueBlack, shape = RoundedCornerShape(16.dp)) {
                     Icon(Icons.Filled.Add, "Add Reminder")
@@ -91,7 +91,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
             }
         } else {
             Column(Modifier.fillMaxSize().padding(padding)) {
-                // Segmented control: Reminders | Health Checks
+                // Segmented control: Health Checks (primary) | Reminders
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -101,7 +101,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf("Reminders", "Health Checks").forEachIndexed { index, label ->
+                    listOf("Health Checks", "Reminders").forEachIndexed { index, label ->
                         val selected = selectedTab == index
                         Box(
                             modifier = Modifier
@@ -123,7 +123,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
                     }
                 }
 
-                if (selectedTab == 1) {
+                if (selectedTab == 0) {
                     HealthChecksScreen(carId = carId)
                 } else {
                     val active = reminders.filter { !it.isCompleted }
