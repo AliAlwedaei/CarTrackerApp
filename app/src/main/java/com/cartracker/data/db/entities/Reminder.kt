@@ -29,5 +29,7 @@ data class Reminder(
     val targetDate: Long? = null,
     val notes: String = "",
     val isCompleted: Boolean = false,
+    val recurrenceKm: Int? = null,
+    val recurrenceDays: Int? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

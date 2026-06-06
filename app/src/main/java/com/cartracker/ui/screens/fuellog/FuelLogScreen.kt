@@ -224,6 +224,7 @@ private fun FuelLogSheet(
     var costPerLiter by remember { mutableStateOf(existingLog?.costPerLiter?.let { String.format(Locale.US, "%.3f", it) } ?: "") }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
     var showDatePicker by remember { mutableStateOf(false) }
+    var odometerError by remember { mutableStateOf(false) }
 
     val totalCost = (liters.toDoubleOrNull() ?: 0.0) * (costPerLiter.toDoubleOrNull() ?: 0.0)
 
@@ -247,11 +248,13 @@ private fun FuelLogSheet(
             DatePickerField(dateMs = dateMs, sdf = sdf) { showDatePicker = true }
 
             OutlinedTextField(
-                value = odometer, onValueChange = { odometer = it },
+                value = odometer, onValueChange = { odometer = it; odometerError = false },
                 label = { Text("Odometer (km)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
-                suffix = if (lastOdometer != null && !isEdit) {
+                isError = odometerError,
+                supportingText = if (odometerError) { { Text("Must be higher than last reading (${String.format(Locale.US, "%.0f", lastOdometer)} km)", color = ErrorRed) } } else null,
+                suffix = if (lastOdometer != null && !isEdit && !odometerError) {
                     { Text("last: ${String.format(Locale.US, "%.0f", lastOdometer)}", color = OnSurfaceSecondary, fontSize = 11.sp) }
                 } else null,
                 colors = sheetFieldColors()
@@ -286,6 +289,9 @@ private fun FuelLogSheet(
                     val odo = odometer.toDoubleOrNull() ?: return@Button
                     val lit = liters.toDoubleOrNull() ?: return@Button
                     val cpl = costPerLiter.toDoubleOrNull() ?: return@Button
+                    if (!isEdit && lastOdometer != null && odo < lastOdometer) {
+                        odometerError = true; return@Button
+                    }
                     onSave(dateMs, odo, lit, cpl, notes)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),

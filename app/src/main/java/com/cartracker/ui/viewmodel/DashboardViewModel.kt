@@ -21,7 +21,8 @@ data class DashboardStats(
     val avgDaysBetweenFillups: Double = 0.0,
     val costPerKm: Double = 0.0,
     val monthlyStats: List<MonthlyFuelStat> = emptyList(),
-    val fuelPercent: Float = 0.72f
+    val fuelPercent: Float = 0.72f,
+    val fuelPriceHistory: List<Float> = emptyList()
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -96,6 +97,9 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 (1.0 - kmSince / avgKmPerTank).toFloat().coerceIn(0f, 1f)
             } else 0.72f
 
+            val fuelPriceHistory = allLogs.takeLast(8)
+                .map { it.costPerLiter.toFloat() }.filter { it > 0f }
+
             _stats.value = DashboardStats(
                 totalMileage = totalMileage,
                 lastServiceDate = lastService?.date,
@@ -106,7 +110,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 avgDaysBetweenFillups = avgDaysBetweenFillups,
                 costPerKm = costPerKm,
                 monthlyStats = monthlyStats,
-                fuelPercent = fuelPercent
+                fuelPercent = fuelPercent,
+                fuelPriceHistory = fuelPriceHistory
             )
         }
     }

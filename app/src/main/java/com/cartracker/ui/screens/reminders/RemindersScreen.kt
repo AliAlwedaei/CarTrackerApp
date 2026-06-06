@@ -153,7 +153,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
                             }
                             items(active, key = { it.id }) { r ->
                                 ReminderCard(reminder = r,
-                                    onComplete = { viewModel.markCompleted(r.id) },
+                                    onComplete = { viewModel.markCompleted(r) },
                                     onEdit = { editingReminder = r; showSheet = true },
                                     onDelete = { viewModel.deleteReminder(r) })
                             }
@@ -180,9 +180,9 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
         ReminderSheet(
             existingReminder = editingReminder,
             onDismiss = { showSheet = false; editingReminder = null },
-            onSave = { title, type, mileage, date, notes ->
-                if (editingReminder != null) viewModel.updateReminder(editingReminder!!, title, type, mileage, date, notes)
-                else viewModel.addReminder(carId, title, type, mileage, date, notes)
+            onSave = { title, type, mileage, date, notes, recKm, recDays ->
+                if (editingReminder != null) viewModel.updateReminder(editingReminder!!, title, type, mileage, date, notes, recKm, recDays)
+                else viewModel.addReminder(carId, title, type, mileage, date, notes, recKm, recDays)
                 showSheet = false; editingReminder = null
             }
         )
@@ -237,6 +237,14 @@ private fun ReminderCard(
                     if (reminder.notes.isNotBlank()) {
                         Text(reminder.notes, color = OnSurfaceSecondary, style = MaterialTheme.typography.bodySmall)
                     }
+                    val recLabel = when {
+                        reminder.recurrenceKm != null -> "↻ every ${reminder.recurrenceKm} km"
+                        reminder.recurrenceDays != null -> "↻ every ${reminder.recurrenceDays}d"
+                        else -> null
+                    }
+                    if (recLabel != null) {
+                        Text(recLabel, color = NeonCyan, style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
             Row {
@@ -265,7 +273,7 @@ private fun ReminderCard(
 private fun ReminderSheet(
     existingReminder: Reminder?,
     onDismiss: () -> Unit,
-    onSave: (String, ReminderType, Double?, Long?, String) -> Unit
+    onSave: (String, ReminderType, Double?, Long?, String, Int?, Int?) -> Unit
 ) {
     val isEdit = existingReminder != null
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
@@ -279,6 +287,9 @@ private fun ReminderSheet(
         mutableStateOf(existingReminder?.targetDate ?: System.currentTimeMillis())
     }
     var notes by remember { mutableStateOf(existingReminder?.notes ?: "") }
+    var recurrence by remember { mutableStateOf(
+        (existingReminder?.recurrenceKm ?: existingReminder?.recurrenceDays)?.toString() ?: ""
+    ) }
     var showDatePicker by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
@@ -336,12 +347,23 @@ private fun ReminderSheet(
             OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes (optional)") },
                 modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors())
 
+            OutlinedTextField(
+                value = recurrence, onValueChange = { recurrence = it },
+                label = { Text(if (type == ReminderType.MILEAGE) "Repeat every (km)" else "Repeat every (days)") },
+                placeholder = { Text("optional — leave blank for one-time", color = OnSurfaceSecondary) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(), colors = sheetFieldColors()
+            )
+
             Button(
                 onClick = {
                     if (title.isBlank()) return@Button
                     val mileage = if (type == ReminderType.MILEAGE) (targetMileage.toDoubleOrNull() ?: return@Button) else null
                     val date = if (type == ReminderType.DATE) targetDateMs else null
-                    onSave(title, type, mileage, date, notes)
+                    val rec = recurrence.toIntOrNull()
+                    val recKm = if (type == ReminderType.MILEAGE) rec else null
+                    val recDays = if (type == ReminderType.DATE) rec else null
+                    onSave(title, type, mileage, date, notes, recKm, recDays)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = TrueBlack),

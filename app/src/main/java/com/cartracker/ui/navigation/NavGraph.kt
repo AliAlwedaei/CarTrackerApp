@@ -17,20 +17,20 @@ import androidx.navigation.compose.*
 import com.cartracker.ui.screens.cars.CarsScreen
 import com.cartracker.ui.screens.dashboard.DashboardScreen
 import com.cartracker.ui.screens.fuellog.FuelLogScreen
+import com.cartracker.ui.screens.history.HistoryScreen
 import com.cartracker.ui.screens.maintenance.MaintenanceScreen
 import com.cartracker.ui.screens.reminders.RemindersScreen
-import com.cartracker.ui.screens.trips.TripsScreen
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.CarsViewModel
 import com.cartracker.ui.viewmodel.CarsViewModelFactory
 
 sealed class Screen(val route: String, val label: String) {
-    object Dashboard : Screen("dashboard", "Home")
-    object FuelLog : Screen("fuel_log", "Fuel")
+    object Dashboard   : Screen("dashboard",   "Home")
+    object FuelLog     : Screen("fuel_log",    "Fuel")
     object Maintenance : Screen("maintenance", "Service")
-    object Trips : Screen("trips", "Trips")
-    object Reminders : Screen("reminders", "Alerts")
-    object Cars : Screen("cars", "Cars")
+    object History     : Screen("history",     "History")
+    object Reminders   : Screen("reminders",   "Alerts")
+    object Cars        : Screen("cars",        "Cars")
 }
 
 @Composable
@@ -46,53 +46,39 @@ fun CarTrackerNavHost() {
     val navController = rememberNavController()
 
     val navItems = listOf(
-        Triple(Screen.Dashboard, Icons.Filled.Home, "Home"),
-        Triple(Screen.FuelLog, Icons.Filled.LocalGasStation, "Fuel"),
-        Triple(Screen.Maintenance, Icons.Filled.Build, "Service"),
-        Triple(Screen.Trips, Icons.Filled.DirectionsCar, "Trips"),
-        Triple(Screen.Reminders, Icons.Filled.Notifications, "Alerts"),
-        Triple(Screen.Cars, Icons.Filled.Garage, "Cars"),
+        Triple(Screen.Dashboard,   Icons.Filled.Home,             "Home"),
+        Triple(Screen.FuelLog,     Icons.Filled.LocalGasStation,  "Fuel"),
+        Triple(Screen.Maintenance, Icons.Filled.Build,            "Service"),
+        Triple(Screen.History,     Icons.Filled.History,          "History"),
+        Triple(Screen.Reminders,   Icons.Filled.Notifications,    "Alerts"),
+        Triple(Screen.Cars,        Icons.Filled.Garage,           "Cars"),
     )
 
     Scaffold(
         containerColor = TrueBlack,
         bottomBar = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                HorizontalDivider(
-                    color = GlassBorder,
-                    thickness = 0.5.dp
-                )
-                NavigationBar(
-                    containerColor = SurfaceContainer,
-                    tonalElevation = 0.dp
-                ) {
+                HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
+                NavigationBar(containerColor = SurfaceContainer, tonalElevation = 0.dp) {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentDestination = navBackStackEntry?.destination
                     navItems.forEach { (screen, icon, label) ->
-                        val selected =
-                            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                         NavigationBarItem(
                             icon = { Icon(icon, contentDescription = label) },
                             label = {
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                                )
+                                Text(label, style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
                             },
                             selected = selected,
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = NeonCyan,
-                                selectedTextColor = NeonCyan,
+                                selectedIconColor = NeonCyan, selectedTextColor = NeonCyan,
                                 indicatorColor = NeonCyanGlow,
-                                unselectedIconColor = OnSurfaceSecondary,
-                                unselectedTextColor = OnSurfaceSecondary
+                                unselectedIconColor = OnSurfaceSecondary, unselectedTextColor = OnSurfaceSecondary
                             ),
                             onClick = {
                                 navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -103,35 +89,22 @@ fun CarTrackerNavHost() {
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
+        NavHost(navController = navController, startDestination = Screen.Dashboard.route,
+            modifier = Modifier.padding(innerPadding)) {
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
-                    carId = activeCarId,
-                    cars = cars,
+                    carId = activeCarId, cars = cars,
                     onCarSelected = { carsViewModel.selectCar(it) },
                     onAddFuel = {
                         navController.navigate(Screen.FuelLog.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    onAddTrip = {
-                        navController.navigate(Screen.Trips.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                            launchSingleTop = true; restoreState = true
                         }
                     },
                     onAddService = {
                         navController.navigate(Screen.Maintenance.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                            launchSingleTop = true; restoreState = true
                         }
                     }
                 )
@@ -142,8 +115,8 @@ fun CarTrackerNavHost() {
             composable(Screen.Maintenance.route) {
                 MaintenanceScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
-            composable(Screen.Trips.route) {
-                TripsScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
+            composable(Screen.History.route) {
+                HistoryScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })
             }
             composable(Screen.Reminders.route) {
                 RemindersScreen(carId = activeCarId, cars = cars, onCarSelected = { carsViewModel.selectCar(it) })

@@ -23,19 +23,23 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val now = System.currentTimeMillis()
         val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
-        // ── Date-based reminders ─────────────────────────────────────────────
+        // ── Reminders (date + mileage) ───────────────────────────────────────
         repository.allActiveReminders.first().forEach { reminder ->
-            val shouldNotify = reminder.type == ReminderType.DATE &&
-                reminder.targetDate != null &&
-                reminder.targetDate <= now + TimeUnit.DAYS.toMillis(3)
+            val shouldNotify = when (reminder.type) {
+                ReminderType.DATE -> reminder.targetDate != null &&
+                    reminder.targetDate <= now + TimeUnit.DAYS.toMillis(3)
+                ReminderType.MILEAGE -> reminder.targetMileage != null && run {
+                    val odo = repository.getCarById(reminder.carId)?.currentOdometer ?: 0.0
+                    odo >= reminder.targetMileage - 500  // within 500 km of target
+                }
+            }
             if (shouldNotify) {
-                notify(
-                    notificationManager,
-                    id = reminder.id.toInt(),
-                    channelId = CHANNEL_REMINDERS,
-                    title = "Upcoming: ${reminder.title}",
-                    text = reminder.targetDate?.let { "Due ${sdf.format(Date(it))}" } ?: reminder.title
-                )
+                val text = when (reminder.type) {
+                    ReminderType.DATE -> reminder.targetDate?.let { "Due ${sdf.format(Date(it))}" } ?: reminder.title
+                    ReminderType.MILEAGE -> reminder.targetMileage?.let { "At %.0f km".format(it) } ?: reminder.title
+                }
+                notify(notificationManager, id = reminder.id.toInt(),
+                    channelId = CHANNEL_REMINDERS, title = reminder.title, text = text)
             }
         }
 

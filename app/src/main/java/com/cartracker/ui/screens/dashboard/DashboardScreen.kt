@@ -49,7 +49,6 @@ fun DashboardScreen(
     cars: List<Car>,
     onCarSelected: (Long) -> Unit,
     onAddFuel: () -> Unit,
-    onAddTrip: () -> Unit,
     onAddService: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -169,6 +168,16 @@ fun DashboardScreen(
 
                 Spacer(Modifier.height(12.dp))
 
+                // ── Fuel price trend ──────────────────────────────────────
+                val priceHistory = stats?.fuelPriceHistory ?: emptyList()
+                if (priceHistory.size >= 2) {
+                    FuelPriceCard(
+                        priceHistory = priceHistory,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
                 // ── ANALYTICS ────────────────────────────────────────────
                 AnalyticsSection(
                     stats = stats,
@@ -180,7 +189,6 @@ fun DashboardScreen(
         // ── BOTTOM 35%: Sticky quick-add dock ─────────────────────────────
         QuickAddDock(
             onAddFuel = onAddFuel,
-            onAddTrip = onAddTrip,
             onAddService = onAddService,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
@@ -246,7 +254,7 @@ private fun HeroCard(
                         lineHeight = 50.sp
                     )
                     Text(
-                        "miles",
+                        "km",
                         color = OnSurfaceSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -574,7 +582,6 @@ private fun MaintenanceCard(
 @Composable
 private fun QuickAddDock(
     onAddFuel: () -> Unit,
-    onAddTrip: () -> Unit,
     onAddService: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -584,8 +591,7 @@ private fun QuickAddDock(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(Color.Transparent, TrueBlack),
-                    startY = 0f,
-                    endY = 32f
+                    startY = 0f, endY = 32f
                 )
             )
             .padding(start = 20.dp, end = 20.dp, bottom = 16.dp, top = 20.dp)
@@ -600,26 +606,79 @@ private fun QuickAddDock(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DockAction(label = "+ Fuel", icon = Icons.Filled.LocalGasStation, onClick = onAddFuel)
-
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(44.dp)
-                    .background(GlassBorder)
-            )
-
-            DockAction(label = "+ Trip", icon = Icons.Filled.DirectionsCar, onClick = onAddTrip)
-
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(44.dp)
-                    .background(GlassBorder)
-            )
-
-            DockAction(label = "+ Service", icon = Icons.Filled.Build, onClick = onAddService)
+            DockAction(label = "+ Fuel",    icon = Icons.Filled.LocalGasStation, onClick = onAddFuel)
+            Box(Modifier.width(1.dp).height(44.dp).background(GlassBorder))
+            DockAction(label = "+ Service", icon = Icons.Filled.Build,            onClick = onAddService)
         }
+    }
+}
+
+// ─── Fuel Price Trend Card ────────────────────────────────────────────────────
+
+@Composable
+private fun FuelPriceCard(priceHistory: List<Float>, modifier: Modifier = Modifier) {
+    val latest = priceHistory.lastOrNull() ?: return
+    val oldest = priceHistory.firstOrNull() ?: return
+    val trend = latest - oldest
+    val trendColor = when {
+        trend > 0.005f -> ErrorRed
+        trend < -0.005f -> SuccessGreen
+        else -> OnSurfaceSecondary
+    }
+    val trendIcon = when {
+        trend > 0.005f -> Icons.Filled.ArrowUpward
+        trend < -0.005f -> Icons.Filled.ArrowDownward
+        else -> Icons.Filled.Remove
+    }
+
+    BentoCard(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("FUEL PRICE", color = OnSurfaceSecondary, fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium, letterSpacing = 2.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("BD %.3f / L".format(latest), color = OnSurfacePrimary,
+                        fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Icon(trendIcon, null, tint = trendColor, modifier = Modifier.size(18.dp))
+                }
+                Text(
+                    if (kotlin.math.abs(trend) < 0.005f) "Stable"
+                    else "%+.3f BD over last ${priceHistory.size} fill-ups".format(trend),
+                    color = trendColor, style = MaterialTheme.typography.labelSmall
+                )
+            }
+            PriceSparkLine(
+                prices = priceHistory,
+                modifier = Modifier.size(width = 100.dp, height = 44.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PriceSparkLine(prices: List<Float>, modifier: Modifier = Modifier) {
+    if (prices.size < 2) return
+    val lineColor = NeonCyan
+    Canvas(modifier = modifier) {
+        val minP = prices.min()
+        val maxP = prices.max()
+        val range = (maxP - minP).coerceAtLeast(0.001f)
+        val pts = prices.mapIndexed { i, p ->
+            Offset(
+                x = i / (prices.size - 1f) * size.width,
+                y = size.height - ((p - minP) / range) * size.height
+            )
+        }
+        val path = Path().apply {
+            moveTo(pts[0].x, pts[0].y)
+            pts.drop(1).forEach { lineTo(it.x, it.y) }
+        }
+        drawPath(path, color = lineColor, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+        drawCircle(color = lineColor, radius = 4.dp.toPx(), center = pts.last())
     }
 }
 

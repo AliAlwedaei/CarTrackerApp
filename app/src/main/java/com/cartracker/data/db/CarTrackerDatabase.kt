@@ -12,7 +12,7 @@ import com.cartracker.data.db.entities.*
 
 @Database(
     entities = [Car::class, FuelLog::class, MaintenanceLog::class, Trip::class, Reminder::class, HealthCheck::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -45,6 +45,13 @@ abstract class CarTrackerDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `reminders` ADD COLUMN `recurrenceKm` INTEGER")
+                db.execSQL("ALTER TABLE `reminders` ADD COLUMN `recurrenceDays` INTEGER")
+            }
+        }
+
         private val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `health_checks` ADD COLUMN `intervalKm` INTEGER")
@@ -60,7 +67,7 @@ abstract class CarTrackerDatabase : RoomDatabase() {
                     CarTrackerDatabase::class.java,
                     "car_tracker_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }
