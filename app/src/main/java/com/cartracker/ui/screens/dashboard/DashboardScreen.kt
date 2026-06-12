@@ -44,6 +44,7 @@ import com.cartracker.ui.viewmodel.DashboardViewModel
 import com.cartracker.ui.viewmodel.DashboardViewModelFactory
 import com.cartracker.ui.viewmodel.MonthlySpendStat
 import com.cartracker.ui.viewmodel.NextDueItem
+import com.cartracker.ui.viewmodel.OilChangeInfo
 import com.cartracker.util.BudgetPrefs
 import com.cartracker.util.CurrencyPrefs
 import java.text.DecimalFormat
@@ -225,7 +226,7 @@ fun DashboardScreen(
                         modifier = Modifier.weight(1.15f)
                     )
                     MaintenanceCard(
-                        lastServiceDate = stats?.lastServiceDate,
+                        oilChangeInfo = stats?.oilChangeInfo,
                         modifier = Modifier.weight(0.85f)
                     )
                 }
@@ -473,19 +474,55 @@ private fun SparkLine(logs: List<FuelLog>, modifier: Modifier = Modifier) {
 // ─── Maintenance Card ─────────────────────────────────────────────────────────
 
 @Composable
-private fun MaintenanceCard(lastServiceDate: Long?, modifier: Modifier = Modifier) {
-    val intervalDays = 90
-    val daysSince = lastServiceDate?.let { ((System.currentTimeMillis() - it) / (1000L * 60 * 60 * 24)).toInt() }
-    val daysLeft = daysSince?.let { (intervalDays - it).coerceAtLeast(0) }
-    val urgencyColor = when { daysLeft == null -> OnSurfaceSecondary; daysLeft <= 7 -> ErrorRed; daysLeft <= 21 -> WarnAmber; else -> SuccessGreen }
-    val progress = daysLeft?.let { (it.toFloat() / intervalDays).coerceIn(0f, 1f) } ?: 0f
+private fun MaintenanceCard(oilChangeInfo: OilChangeInfo?, modifier: Modifier = Modifier) {
+    val info = oilChangeInfo
+    val neverDone = info == null || info.lastCheckedDate == null
+
+    val urgencyColor = when {
+        info == null || neverDone         -> OnSurfaceSecondary
+        info.isOverdue                    -> ErrorRed
+        info.kmLeft != null && info.kmLeft  <= 500  -> WarnAmber
+        info.daysLeft != null && info.daysLeft <= 14 -> WarnAmber
+        else                              -> SuccessGreen
+    }
+
+    // Primary value: prefer km remaining if km interval is configured
+    val primaryValue: String
+    val primaryUnit: String
+    val progress: Float
+    when {
+        info == null -> { primaryValue = "--"; primaryUnit = "no data"; progress = 0f }
+        info.isOverdue && info.kmLeft != null && info.kmLeft < 0 -> {
+            primaryValue = "%,.0f".format(-info.kmLeft)
+            primaryUnit  = "km over"
+            progress     = 0f
+        }
+        info.isOverdue -> {
+            primaryValue = "${-(info.daysLeft ?: 0)}"
+            primaryUnit  = "days over"
+            progress     = 0f
+        }
+        info.kmLeft != null && info.intervalKm != null -> {
+            primaryValue = "%,.0f".format(info.kmLeft)
+            primaryUnit  = "km left"
+            progress     = (info.kmLeft / info.intervalKm).toFloat().coerceIn(0f, 1f)
+        }
+        info.daysLeft != null -> {
+            primaryValue = "${info.daysLeft}"
+            primaryUnit  = "days left"
+            progress     = (info.daysLeft.toFloat() / info.intervalDays).coerceIn(0f, 1f)
+        }
+        else -> { primaryValue = "--"; primaryUnit = "no data"; progress = 0f }
+    }
 
     BentoCard(modifier = modifier.height(160.dp)) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("OIL CHANGE", color = OnSurfaceSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium, letterSpacing = 2.sp)
-                Text(daysLeft?.toString() ?: "--", color = urgencyColor, fontWeight = FontWeight.Black, fontSize = 40.sp, lineHeight = 42.sp)
-                Text(if (daysLeft != null) "days left" else "no data", color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
+                Text("OIL CHANGE", color = OnSurfaceSecondary, fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium, letterSpacing = 2.sp)
+                Text(primaryValue, color = urgencyColor, fontWeight = FontWeight.Black,
+                    fontSize = if (primaryValue.length > 4) 28.sp else 40.sp, lineHeight = 42.sp)
+                Text(primaryUnit, color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
             }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 LinearProgressIndicator(
@@ -493,7 +530,7 @@ private fun MaintenanceCard(lastServiceDate: Long?, modifier: Modifier = Modifie
                     modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                     color = urgencyColor, trackColor = SurfaceContainerHighest
                 )
-                lastServiceDate?.let {
+                info?.lastCheckedDate?.let {
                     Text("Last: ${SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it))}",
                         color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall)
                 }

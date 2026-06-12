@@ -41,7 +41,12 @@ class ReportsViewModel(application: Application) : AndroidViewModel(application)
             val totalExpenseCost = repository.getExpenseTotalAllTime(carId) ?: 0.0
             val totalOwnershipCost = totalFuelCost + totalMaintCost + totalExpenseCost
 
-            val totalKm = repository.getTotalMileage(carId) ?: 0.0
+            // Prefer odometer spread from fuel logs; fall back to trip mileage if no logs
+            val minOdo = fuelLogs.minOfOrNull { it.odometer } ?: 0.0
+            val maxOdo = fuelLogs.maxOfOrNull { it.odometer } ?: 0.0
+            val odometerKm = if (maxOdo > minOdo) maxOdo - minOdo else 0.0
+            val tripKm = repository.getTotalMileage(carId) ?: 0.0
+            val totalKm = if (odometerKm > 0) odometerKm else tripKm
             val costPerKm = if (totalKm > 0) totalOwnershipCost / totalKm else 0.0
 
             val workKm = trips.filter { it.purpose == TripPurpose.WORK }.sumOf { it.distance }

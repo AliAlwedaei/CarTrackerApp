@@ -75,18 +75,22 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 val kmUntilDue = if (check.intervalKm != null && kmSince != null) check.intervalKm - kmSince else null
 
                 val isOverdue = (lastAt == null) || (daysUntilDue < 0) || (kmUntilDue != null && kmUntilDue < 0)
-                if (isOverdue) {
+                val isDueSoon = !isOverdue && (daysUntilDue in 0L..7L || (kmUntilDue != null && kmUntilDue >= 0.0 && kmUntilDue <= 500.0))
+                if (isOverdue || isDueSoon) {
                     val reason = when {
-                        lastAt == null -> "never done"
-                        kmUntilDue != null && kmUntilDue < 0 -> "${(-kmUntilDue).toInt()} km overdue"
-                        else -> "${(-daysUntilDue)}d overdue"
+                        lastAt == null                              -> "never checked"
+                        isOverdue && kmUntilDue != null && kmUntilDue < 0 -> "${(-kmUntilDue).toInt()} km overdue"
+                        isOverdue                                  -> "${(-daysUntilDue)}d overdue"
+                        kmUntilDue != null                         -> "${kmUntilDue.toInt()} km remaining"
+                        else                                       -> "${daysUntilDue}d remaining"
                     }
                     notify(
                         manager = notificationManager,
                         id = (car.id * 100 + check.checkType.ordinal).toInt(),
                         channelId = CHANNEL_HEALTH,
-                        title = "${car.name} — ${check.checkType.displayName}",
-                        text = "${check.checkType.displayName} is $reason",
+                        title = if (isOverdue) "${car.name} — ${check.checkType.displayName} overdue"
+                                else "${car.name} — ${check.checkType.displayName} due soon",
+                        text = reason,
                         deepLinkRoute = ROUTE_HEALTH
                     )
                 }
@@ -118,6 +122,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(pendingIntent)
             .build()
         manager.notify(id, notification)

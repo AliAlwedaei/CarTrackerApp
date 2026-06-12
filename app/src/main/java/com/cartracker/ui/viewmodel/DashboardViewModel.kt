@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.*
 import com.cartracker.CarTrackerApp
 import com.cartracker.data.db.entities.FuelLog
+import com.cartracker.data.db.entities.HealthCheckType
 import com.cartracker.data.db.entities.MaintenanceLog
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -20,6 +21,15 @@ data class MonthlySpendStat(
 
 // Keep alias so existing callers still compile
 typealias MonthlyFuelStat = MonthlySpendStat
+
+data class OilChangeInfo(
+    val daysLeft: Long?,
+    val kmLeft: Double?,
+    val isOverdue: Boolean,
+    val lastCheckedDate: Long?,
+    val intervalDays: Int,
+    val intervalKm: Int?
+)
 
 data class NextDueItem(
     val title: String,
@@ -46,7 +56,8 @@ data class DashboardStats(
     val overdueChecksCount: Int = 0,
     val dueSoonChecksCount: Int = 0,
     val projectedAnnualTotalCost: Double = 0.0,
-    val nextDueItems: List<NextDueItem> = emptyList()
+    val nextDueItems: List<NextDueItem> = emptyList(),
+    val oilChangeInfo: OilChangeInfo? = null
 ) {
     val monthlyTotalCost get() = monthlyFuelCost + monthlyMaintCost + monthlyExpenseCost
 }
@@ -139,6 +150,20 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val fuelPriceHistory = allLogs.takeLast(8)
                 .map { it.costPerLiter.toFloat() }.filter { it > 0f }
 
+            // Oil change health check — real interval + km tracking
+            val currentOdometer = car?.currentOdometer ?: 0.0
+            val oilCheck = repository.getHealthCheck(carId, HealthCheckType.ENGINE_OIL)
+            val oilChangeInfo = oilCheck?.let { hc ->
+                val lastAt  = hc.lastCheckedAt
+                val lastOdo = hc.lastCheckedAtOdometer
+                val daysSince = lastAt?.let { (now - it) / (1000L * 60 * 60 * 24) }
+                val daysLeft  = daysSince?.let { hc.intervalDays.toLong() - it }
+                val kmSince   = if (hc.intervalKm != null && lastOdo != null) currentOdometer - lastOdo else null
+                val kmLeft    = if (hc.intervalKm != null && kmSince != null) hc.intervalKm.toDouble() - kmSince else null
+                val isOverdue = daysLeft == null || daysLeft < 0 || (kmLeft != null && kmLeft < 0)
+                OilChangeInfo(daysLeft, kmLeft, isOverdue, lastAt, hc.intervalDays, hc.intervalKm)
+            }
+
             // Health check action-required counts
             val healthChecks = repository.getHealthChecksOnce(carId)
             val odo = car?.currentOdometer ?: 0.0
@@ -217,7 +242,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 overdueChecksCount = overdueCount,
                 dueSoonChecksCount = dueSoonCount,
                 projectedAnnualTotalCost = projectedAnnualTotalCost,
-                nextDueItems = scoredReminders
+                nextDueItems = scoredReminders,
+                oilChangeInfo = oilChangeInfo
             )
         }
     }
