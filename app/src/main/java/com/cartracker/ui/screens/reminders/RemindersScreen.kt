@@ -33,6 +33,7 @@ import com.cartracker.ui.screens.healthchecks.HealthChecksScreen
 import com.cartracker.ui.theme.*
 import com.cartracker.ui.viewmodel.RemindersViewModel
 import com.cartracker.ui.viewmodel.RemindersViewModelFactory
+import com.cartracker.ui.viewmodel.ReminderSuggestion
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,6 +46,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
         factory = RemindersViewModelFactory(context.applicationContext as android.app.Application)
     )
     val reminders by viewModel.reminders.observeAsState(emptyList())
+    val suggestions by viewModel.suggestions.observeAsState(emptyList())
 
     val selectedCar = cars.firstOrNull { it.id == carId }
     var editingReminder by remember { mutableStateOf<Reminder?>(null) }
@@ -134,7 +136,22 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(bottom = 14.dp)
                     ) {
-                        if (active.isEmpty() && done.isEmpty()) {
+                        // Smart suggestions from maintenance history
+                        if (suggestions.isNotEmpty()) {
+                            item {
+                                Text("SMART SUGGESTIONS", color = NeonCyan, fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium, letterSpacing = 2.sp,
+                                    modifier = Modifier.padding(bottom = 2.dp))
+                            }
+                            items(suggestions, key = { "sug_${it.title}_${it.targetMileage}" }) { s ->
+                                SuggestionCard(
+                                    suggestion = s,
+                                    onAdd = { carId?.let { id -> viewModel.addSuggestion(id, s) } }
+                                )
+                            }
+                        }
+
+                        if (active.isEmpty() && done.isEmpty() && suggestions.isEmpty()) {
                             item {
                                 Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -149,7 +166,7 @@ fun RemindersScreen(carId: Long?, cars: List<Car> = emptyList(), onCarSelected: 
                             item {
                                 Text("UPCOMING", color = NeonCyan, fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium, letterSpacing = 2.sp,
-                                    modifier = Modifier.padding(bottom = 2.dp))
+                                    modifier = Modifier.padding(top = if (suggestions.isNotEmpty()) 4.dp else 0.dp, bottom = 2.dp))
                             }
                             items(active, key = { it.id }) { r ->
                                 ReminderCard(reminder = r,
@@ -261,6 +278,50 @@ private fun ReminderCard(
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Filled.Delete, "Delete", tint = ErrorRed, modifier = Modifier.size(16.dp))
                 }
+            }
+        }
+    }
+}
+
+// ─── Suggestion Card ──────────────────────────────────────────────────────────
+
+@Composable
+private fun SuggestionCard(suggestion: ReminderSuggestion, onAdd: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceContainer)
+            .border(1.dp, NeonCyan.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+    ) {
+        Row(
+            Modifier.padding(14.dp).fillMaxWidth(),
+            Arrangement.SpaceBetween,
+            Alignment.CenterVertically
+        ) {
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                        .background(NeonCyan.copy(alpha = 0.1f)), Alignment.Center
+                ) {
+                    Icon(Icons.Filled.AutoAwesome, null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(suggestion.title, color = OnSurfacePrimary,
+                        fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        String.format(Locale.US, "At %,.0f km · %s", suggestion.targetMileage, suggestion.notes),
+                        color = OnSurfaceSecondary, style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    )
+                }
+            }
+            TextButton(
+                onClick = onAdd,
+                colors = ButtonDefaults.textButtonColors(contentColor = NeonCyan)
+            ) {
+                Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Add", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             }
         }
     }

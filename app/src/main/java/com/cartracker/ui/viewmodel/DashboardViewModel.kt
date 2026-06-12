@@ -21,6 +21,13 @@ data class MonthlySpendStat(
 // Keep alias so existing callers still compile
 typealias MonthlyFuelStat = MonthlySpendStat
 
+data class NextDueItem(
+    val title: String,
+    val subtitle: String,
+    val isOverdue: Boolean,
+    val isDueSoon: Boolean
+)
+
 data class DashboardStats(
     val totalMileage: Double = 0.0,
     val lastServiceDate: Long? = null,
@@ -38,7 +45,8 @@ data class DashboardStats(
     val ytdTotalCost: Double = 0.0,
     val overdueChecksCount: Int = 0,
     val dueSoonChecksCount: Int = 0,
-    val projectedAnnualTotalCost: Double = 0.0
+    val projectedAnnualTotalCost: Double = 0.0,
+    val nextDueItems: List<NextDueItem> = emptyList()
 ) {
     val monthlyTotalCost get() = monthlyFuelCost + monthlyMaintCost + monthlyExpenseCost
 }
@@ -172,6 +180,40 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val projectedAnnualTotalCost = if (dayOfYear > 0 && ytdTotalCost > 0)
                 (ytdTotalCost / dayOfYear) * 365.0 else 0.0
 
+            // Next-due reminders: rank active reminders by urgency for the dashboard card
+            val currentOdo = car?.currentOdometer ?: 0.0
+            val activeReminders = repository.getActiveRemindersForCar(carId)
+            data class ReminderScore(val item: NextDueItem, val urgencyScore: Double)
+            val scoredReminders = activeReminders.mapNotNull { r ->
+                when (r.type) {
+                    com.cartracker.data.db.entities.ReminderType.MILEAGE -> {
+                        val km = r.targetMileage ?: return@mapNotNull null
+                        val kmLeft = km - currentOdo
+                        val isOverdue = kmLeft < 0
+                        val isDueSoon = !isOverdue && kmLeft <= 500
+                        val sub = if (isOverdue) "%.0f km overdue".format(-kmLeft)
+                                  else "in %.0f km (at %,.0f km)".format(kmLeft, km)
+                        ReminderScore(
+                            NextDueItem(r.title, sub, isOverdue, isDueSoon),
+                            if (isOverdue) kmLeft else kmLeft + 100_000
+                        )
+                    }
+                    com.cartracker.data.db.entities.ReminderType.DATE -> {
+                        val target = r.targetDate ?: return@mapNotNull null
+                        val daysLeft = (target - now) / (1000L * 60 * 60 * 24)
+                        val isOverdue = daysLeft < 0
+                        val isDueSoon = !isOverdue && daysLeft <= 7
+                        val sub = if (isOverdue) "${-daysLeft}d overdue"
+                                  else if (daysLeft == 0L) "Due today"
+                                  else "in ${daysLeft}d"
+                        ReminderScore(
+                            NextDueItem(r.title, sub, isOverdue, isDueSoon),
+                            if (isOverdue) daysLeft.toDouble() else daysLeft.toDouble() + 100_000
+                        )
+                    }
+                }
+            }.sortedBy { it.urgencyScore }.take(3).map { it.item }
+
             _stats.value = DashboardStats(
                 totalMileage = totalMileage,
                 lastServiceDate = lastService?.date,
@@ -189,7 +231,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 ytdTotalCost = ytdTotalCost,
                 overdueChecksCount = overdueCount,
                 dueSoonChecksCount = dueSoonCount,
-                projectedAnnualTotalCost = projectedAnnualTotalCost
+                projectedAnnualTotalCost = projectedAnnualTotalCost,
+                nextDueItems = scoredReminders
             )
         }
     }

@@ -43,6 +43,7 @@ import com.cartracker.ui.viewmodel.DashboardStats
 import com.cartracker.ui.viewmodel.DashboardViewModel
 import com.cartracker.ui.viewmodel.DashboardViewModelFactory
 import com.cartracker.ui.viewmodel.MonthlySpendStat
+import com.cartracker.ui.viewmodel.NextDueItem
 import com.cartracker.util.BudgetPrefs
 import com.cartracker.util.CurrencyPrefs
 import java.text.DecimalFormat
@@ -202,6 +203,16 @@ fun DashboardScreen(
                 }
 
                 Spacer(Modifier.height(12.dp))
+
+                // ── Next Due reminders card ───────────────────────────────
+                val nextDueItems = stats?.nextDueItems ?: emptyList()
+                if (nextDueItems.isNotEmpty()) {
+                    NextDueCard(
+                        items = nextDueItems,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
 
                 // ── ZONE 3: Bento grid ────────────────────────────────────
                 Row(
@@ -565,6 +576,51 @@ private fun DockAction(label: String, icon: ImageVector, onClick: () -> Unit) {
             Icon(icon, contentDescription = label, tint = NeonCyan, modifier = Modifier.size(22.dp))
         }
         Text(label, color = OnSurfacePrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+// ─── Next Due Card ────────────────────────────────────────────────────────────
+
+@Composable
+private fun NextDueCard(items: List<NextDueItem>, modifier: Modifier = Modifier) {
+    BentoCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "UPCOMING",
+                color = OnSurfaceSecondary, fontSize = 10.sp,
+                fontWeight = FontWeight.Medium, letterSpacing = 2.sp
+            )
+            items.forEach { item ->
+                val accent = when {
+                    item.isOverdue -> ErrorRed
+                    item.isDueSoon -> WarnAmber
+                    else           -> NeonCyan
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.size(8.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(accent)
+                    )
+                    Text(
+                        item.title,
+                        color = OnSurfacePrimary,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        item.subtitle,
+                        color = accent,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (item.isOverdue) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+        }
     }
 }
 

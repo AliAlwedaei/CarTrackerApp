@@ -23,4 +23,7 @@ interface ReminderDao {
 
     @Query("UPDATE reminders SET isCompleted = 1 WHERE id = :reminderId")
     suspend fun markCompleted(reminderId: Long)
+
+    @Query("SELECT * FROM reminders WHERE carId = :carId AND isCompleted = 0 ORDER BY createdAt DESC")
+    suspend fun getActiveRemindersOnce(carId: Long): List<Reminder>
 }

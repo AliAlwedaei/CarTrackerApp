@@ -73,6 +73,7 @@ class CarTrackerRepository(
     suspend fun updateReminder(reminder: Reminder) = reminderDao.updateReminder(reminder)
     suspend fun deleteReminder(reminder: Reminder) = reminderDao.deleteReminder(reminder)
     suspend fun markReminderCompleted(reminderId: Long) = reminderDao.markCompleted(reminderId)
+    suspend fun getActiveRemindersForCar(carId: Long) = reminderDao.getActiveRemindersOnce(carId)
 
     // Expenses
     fun getExpensesForCar(carId: Long): Flow<List<Expense>> = expenseDao.getExpensesForCar(carId)
