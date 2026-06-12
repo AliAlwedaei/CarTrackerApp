@@ -117,29 +117,14 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                         it.date >= startCal.timeInMillis && it.date < endCal.timeInMillis
                     }.sumOf { it.totalCost }
                     // For maintenance and expenses we use the dao directly for each month range
+                    // getTotalFrom = SUM WHERE date >= fromDate (running total to now).
+                    // To isolate a month: subtract the next month's running total from this month's.
                     val maintFrom = repository.getMaintenanceTotalFrom(carId, startCal.timeInMillis) ?: 0.0
-                    val maintPrev = if (offset < 5) {
-                        val prevStart = Calendar.getInstance().apply {
-                            add(Calendar.MONTH, -(offset + 1))
-                            set(Calendar.DAY_OF_MONTH, 1)
-                            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                        }
-                        repository.getMaintenanceTotalFrom(carId, prevStart.timeInMillis) ?: 0.0
-                    } else 0.0
-                    val maintInMonth = (maintFrom - maintPrev).coerceAtLeast(0.0)
-                    val expenseInMonth = repository.getExpenseTotalFrom(carId, startCal.timeInMillis).let { fromTotal ->
-                        val prevTotal = if (offset < 5) {
-                            val prevStart = Calendar.getInstance().apply {
-                                add(Calendar.MONTH, -(offset + 1))
-                                set(Calendar.DAY_OF_MONTH, 1)
-                                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                            }
-                            repository.getExpenseTotalFrom(carId, prevStart.timeInMillis) ?: 0.0
-                        } else 0.0
-                        ((fromTotal ?: 0.0) - prevTotal).coerceAtLeast(0.0)
-                    }
+                    val maintEnd  = repository.getMaintenanceTotalFrom(carId, endCal.timeInMillis)   ?: 0.0
+                    val maintInMonth = (maintFrom - maintEnd).coerceAtLeast(0.0)
+                    val expenseFrom = repository.getExpenseTotalFrom(carId, startCal.timeInMillis) ?: 0.0
+                    val expenseEnd  = repository.getExpenseTotalFrom(carId, endCal.timeInMillis)   ?: 0.0
+                    val expenseInMonth = (expenseFrom - expenseEnd).coerceAtLeast(0.0)
                     add(MonthlySpendStat(label = label, fuelCost = fuelInMonth, maintCost = maintInMonth, expenseCost = expenseInMonth))
                 }
             }
